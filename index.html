@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bantay Pera</title>
+<meta name="theme-color" content="#2B57A0">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+<style>
+:root{
+  --bg:#EEF1F5;--surface:#FFFFFF;--ink:#17202B;--muted:#5B6777;--line:#D8DEE6;
+  --blue:#2B57A0;--gold:#A87A1F;--red:#B23D36;--green:#27704B;
+  --redbg:#F7E4E2;--greenbg:#E1EFE6;--goldbg:#F6EDD9;--bluebg:#E3EAF6;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#11161E;--surface:#1A222D;--ink:#E7EBF1;--muted:#9AA5B4;--line:#2B3543;
+    --blue:#86A8E8;--gold:#E2B65C;--red:#EF857C;--green:#71C696;
+    --redbg:#3A2324;--greenbg:#1B3226;--goldbg:#372D19;--bluebg:#1D2A40;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:84px}
+.num,b,.amt{font-variant-numeric:tabular-nums}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.top{padding:18px 18px 6px;max-width:560px;margin:0 auto}
+.top h1{margin:0;font-size:22px;letter-spacing:-.01em;font-weight:750}
+.top p{margin:2px 0 0;color:var(--muted);font-size:13px}
+main{max-width:560px;margin:0 auto;padding:6px 14px 20px}
+section{margin:12px 0}
+h2{font-size:18px;margin:0}
+h3{font-size:15px;margin:0 0 8px;font-weight:650}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px}
+.hint{color:var(--muted);font-size:13px;margin:6px 0 0}
+.monthnav{display:flex;align-items:center;justify-content:space-between}
+.monthnav button{background:none;border:1px solid var(--line);border-radius:10px;width:40px;height:36px;font-size:18px}
+/* hero: the month's money race */
+.hero{background:var(--surface);border-radius:18px;padding:16px;border:1px solid var(--line)}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.row span{color:var(--muted);font-size:13px}
+.row b{font-size:17px}
+.bar{height:14px;background:var(--bg);border-radius:7px;overflow:hidden;display:flex;margin:6px 0 12px}
+.seg{display:block;height:100%}
+.seg.in{background:var(--green)}
+.seg.out{background:var(--red)}
+.seg.due{background:repeating-linear-gradient(45deg,var(--red) 0 5px,transparent 5px 9px);opacity:.75}
+.verdict{margin:4px 0 0;font-size:20px;font-weight:700;line-height:1.25}
+.verdict.good{color:var(--green)}
+.verdict.bad{color:var(--red)}
+.verdict small{display:block;font-size:13px;font-weight:400;color:var(--muted);margin-top:4px}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:-4px;margin-bottom:10px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.callout{border-left:4px solid var(--gold);background:var(--goldbg);border-radius:10px;padding:12px 14px}
+.callout.red{border-color:var(--red);background:var(--redbg)}
+.callout.green{border-color:var(--green);background:var(--greenbg)}
+.callout p{margin:0}
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.list li:last-child{border-bottom:0}
+.list .main{flex:1;min-width:0}
+.list .name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list .meta{font-size:12px;color:var(--muted)}
+.list .amt{font-weight:650;white-space:nowrap}
+.list li.done .name,.list li.done .amt{color:var(--muted);text-decoration:line-through}
+.day{min-width:38px;text-align:center;font-size:11px;color:var(--muted);line-height:1.1}
+.day b{display:block;font-size:17px;color:var(--ink)}
+.day.late b{color:var(--red)}
+.pos{color:var(--green)}.neg{color:var(--red)}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 12px;font-weight:600;font-size:14px}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+@media (prefers-color-scheme:dark){.btn.primary{color:#0f1620}}
+.btn.small{padding:5px 9px;font-size:13px}
+.btn.ghost{border-color:transparent;background:none;color:var(--muted)}
+.btn.danger{color:var(--red)}
+.btn.wide{width:100%;padding:12px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px}
+.stat span{display:block;font-size:12px;color:var(--muted)}
+.stat b{font-size:16px}
+.cat{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:13px;margin-bottom:8px}
+.cat .track{grid-column:1/-1;height:6px;background:var(--bg);border-radius:3px;overflow:hidden}
+.cat .track i{display:block;height:100%;background:var(--red)}
+.field{display:block;margin:0 0 12px}
+.field span{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+.field input,.field select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.seg-toggle{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:12px}
+.seg-toggle button{border:0;background:var(--surface);padding:10px;font-weight:600}
+.seg-toggle button[aria-pressed="true"].in{background:var(--green);color:#fff}
+.seg-toggle button[aria-pressed="true"].out{background:var(--red);color:#fff}
+.seg-toggle button[aria-pressed="true"].neutral{background:var(--ink);color:var(--surface)}
+.groupname{font-size:12px;color:var(--muted);margin:14px 0 2px;font-weight:600}
+.empty{color:var(--muted);text-align:center;padding:18px 8px;font-size:14px}
+.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+.tabs button{background:none;border:0;padding:8px 2px;font-size:12px;font-weight:600;color:var(--muted);border-radius:10px}
+.tabs button[aria-current="page"]{color:var(--blue);background:var(--bluebg)}
+.tabs svg{display:block;margin:0 auto 2px;width:20px;height:20px}
+dialog{border:0;border-radius:18px 18px 0 0;padding:0;width:100%;max-width:560px;margin:auto auto 0;background:var(--surface);color:var(--ink);max-height:90vh}
+dialog::backdrop{background:rgba(10,14,20,.5)}
+.dlg{padding:18px}
+.dlg h2{margin-bottom:14px}
+.actions{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
+.actions .grow{flex:1}
+#toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:9px 14px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:10;max-width:90vw}
+#toast.show{opacity:1}
+.big{font-size:28px;font-weight:750;letter-spacing:-.01em}
+.scen{display:grid;grid-template-columns:1fr auto auto;gap:4px 12px;font-size:14px;align-items:baseline}
+.scen .h{font-size:12px;color:var(--muted)}
+textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:10px;font:12px/1.4 ui-monospace,monospace;color:var(--ink)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.tabs{grid-template-columns:repeat(6,1fr)}
+.tabs button{font-size:11px;padding:8px 0}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.gear{background:none;border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:13px;font-weight:600;color:var(--muted)}
+.acct{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);gap:10px;background:none;border-left:0;border-right:0;border-top:0;width:100%;text-align:left}
+.acct:last-of-type{border-bottom:0}
+.acct .k{font-size:12px;color:var(--muted)}
+.acct b{font-size:16px}
+.total{display:flex;justify-content:space-between;align-items:baseline;margin-top:8px;padding-top:10px;border-top:2px solid var(--ink)}
+.total b{font-size:22px}
+.goal{height:6px;background:var(--bg);border-radius:3px;overflow:hidden;margin-top:4px}
+.goal i{display:block;height:100%;background:var(--gold)}
+.daynav{display:flex;gap:8px;align-items:center}
+.daynav input{flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.daynav button{background:var(--surface);border:1px solid var(--line);border-radius:10px;width:40px;height:38px;font-size:18px}
+.btnrow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.btnrow .btn{padding:10px 6px;font-size:13px}
+.pl{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:14px}
+.pl .t{border-top:1px solid var(--line);padding-top:6px;font-weight:700}
+.techrow{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.techrow:last-child{border-bottom:0}
+.techrow .meta{font-size:12px;color:var(--muted)}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:right;color:var(--muted);font-weight:600;font-size:12px;padding:4px 0}
+.tbl th:first-child,.tbl td:first-child{text-align:left}
+.tbl td{text-align:right;padding:6px 0;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+.chips.scroll{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}
+.chips.scroll .chip{white-space:nowrap}
+.preview{background:var(--bluebg);border-radius:10px;padding:10px 12px;font-size:14px;margin:-2px 0 12px}
+</style>
+</head>
+<body>
+<header class="top">
+  <div><h1>Bantay Pera</h1><p id="sub">Personal, shop and online money in one place.</p></div>
+  <button class="gear" id="gear">Settings</button>
+</header>
+<main id="view"></main>
+<nav class="tabs" id="tabs" aria-label="Sections"></nav>
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const KEY='bantay-pera-v1';
+const BORROWED='Borrowed (card/loan)';
+const DRAW='Owner draw';
+const BOOKCATS={
+  me:{in:['Salary',DRAW,'Side income',BORROWED,'Other in'],
+      out:['Food','Transport','Utilities','Bills','Subscriptions','Debt payment','Family','Load & data','Personal','Other out']},
+  fk:{in:['Repair job','Accessories sales','Other shop income',BORROWED],
+      out:['Parts','Parts delivery','Tech pay','Rent','Utilities','Internet','Permits & fees','Software & tools','Supplies',DRAW,'Other shop expense']},
+  ct:{in:['Winbliter8 activations','Kurso.ph courses','Other online income',BORROWED],
+      out:['Hosting & domain','Software & tools','Ads',DRAW,'Other']}
+};
+const GENERIC={in:['Sales','Other income',BORROWED],out:['Supplies','Software & tools','Other expense',DRAW]};
+const ACCT_KINDS={cash:'Cash',bank:'Bank',ewallet:'E-wallet',reserve:'Emergency reserve'};
+const FREQ={monthly:'Monthly',quarterly:'Every 3 months',yearly:'Yearly'};
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function defaults(){return{
+  v:2,goalFix:true,routes:[],
+  accounts:[
+    {id:'cash',name:'Cash on hand',kind:'cash',opening:0,goal:0},
+    {id:'drawer',name:'Shop drawer',kind:'cash',opening:0,goal:0},
+    {id:'gcash',name:'GCash',kind:'ewallet',opening:0,goal:0},
+    {id:'bank',name:'Bank',kind:'bank',opening:0,goal:0},
+    {id:'reserve',name:'Emergency fund',kind:'reserve',opening:0,goal:0}],
+  books:[{id:'me',name:'Personal'},{id:'fk',name:'FoneKingdom'},{id:'ct',name:'Confident Tech'}],
+  techs:[
+    {id:'owner',name:'Me',pct:0,allow:0,rule:'none',owner:true},
+    {id:'lester',name:'Lester',pct:40,allow:300,rule:'manual'},
+    {id:'eder',name:'Eder',pct:20,allow:200,rule:'always'}],
+  shop:{base:'net',delivery:150},
+  tx:[],bills:[],debts:[],paid:{},
+  plan:{extra:0,method:'avalanche'},
+  invest:{jar:0,daily:100,minComm:20,rate:6,years:20,holdings:[]}
+}}
+let S=defaults();
+let tab='home',prevTab='home';
+let period='month',viewMonth=monthKey(todayISO()),homeBook='all',logBook='all',billBook='all',shopDay=todayISO();
+
+/* ---------- helpers ---------- */
+function pad(n){return String(n).padStart(2,'0')}
+function iso(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function todayISO(){return iso(new Date())}
+function monthKey(s){return s.slice(0,7)}
+function shiftDay(s,n){const d=new Date(s+'T00:00');d.setDate(d.getDate()+n);return iso(d)}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function num(v){const n=parseFloat(String(v).replace(/[,₱\s]/g,''));return isFinite(n)?n:0}
+function peso(n,dec){const neg=n<0;const s=Math.abs(n).toLocaleString('en-PH',{minimumFractionDigits:dec?2:0,maximumFractionDigits:dec?2:0});return(neg?'−':'')+'₱'+s}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function monthLabel(m){const[y,mo]=m.split('-').map(Number);return new Date(y,mo-1,1).toLocaleDateString('en-PH',{month:'long',year:'numeric'})}
+function dayLabel(s){return new Date(s+'T00:00').toLocaleDateString('en-PH',{weekday:'short',month:'short',day:'numeric'})}
+function shiftMonth(m,d){const[y,mo]=m.split('-').map(Number);const t=new Date(y,mo-1+d,1);return t.getFullYear()+'-'+pad(t.getMonth()+1)}
+function sum(a,f){return a.reduce((s,x)=>s+(f?f(x):x),0)}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),2200)}
+function cats(book,type){return(BOOKCATS[book]||GENERIC)[type]}
+function bookName(id){return(S.books.find(b=>b.id===id)||{name:id}).name}
+function acctName(id){if(id==='card')return'Credit card';if(String(id).startsWith('card:')){const d=S.debts.find(x=>x.id===id.slice(5));return d?(d.bank?d.bank+' ':'')+d.name+' (card)':'Credit card'}return(S.accounts.find(a=>a.id===id)||{name:'(deleted account)'}).name}
+function techById(id){return S.techs.find(t=>t.id===id)||{name:'?',pct:0,allow:0,rule:'none'}}
+
+/* ---------- storage & migration ---------- */
+function migrate(d){
+  const base=defaults();
+  if(d.v===2){const o=Object.assign(base,d);o.invest=Object.assign(defaults().invest,d.invest||{});o.plan=Object.assign(defaults().plan,d.plan||{});o.shop=Object.assign(defaults().shop,d.shop||{});o.techs.forEach(t=>{if(t.rule==='nojobs')t.rule='manual'});o.debts.forEach(fixDebt);if(!d.goalFix){o.accounts.forEach(a=>{if(a.kind!=='reserve'&&a.goal>0&&!(+a.opening)&&!o.tx.some(t=>t.acct===a.id||t.to===a.id)){a.opening=a.goal;a.goal=0}});o.goalFix=true}return o}
+  const map={'Cash':'cash','GCash':'gcash','Bank':'bank','Credit card':'card'};
+  base.tx=(d.tx||[]).map(t=>({id:t.id,date:t.date,type:t.type,amt:t.amt,cat:t.cat,note:t.note,book:'me',acct:map[t.method]||'cash'}));
+  base.bills=(d.bills||[]).map(b=>({id:b.id,name:b.name,amt:b.amt,due:b.due,book:'me',freq:'monthly',start:1,cat:b.kind==='sub'?'Subscriptions':'Bills',via:b.via||''}));
+  base.debts=(d.debts||[]).map(fixDebt);base.paid=d.paid||{};
+  base.plan=Object.assign(base.plan,d.plan||{});base.invest=Object.assign(base.invest,d.invest||{});
+  return base;
+}
+const HAS_CLOUD=!!(window.storage&&typeof window.storage.get==='function');
+async function readStore(){
+  if(HAS_CLOUD){const r=await window.storage.get(KEY,false);return r&&r.value}
+  return localStorage.getItem(KEY);
+}
+async function writeStore(v){
+  if(HAS_CLOUD){const r=await window.storage.set(KEY,v,false);return !!r}
+  localStorage.setItem(KEY,v);return true;
+}
+async function delStore(k){try{if(HAS_CLOUD)await window.storage.delete(k,false);else localStorage.removeItem(k)}catch(e){}}
+async function readKey(k){if(HAS_CLOUD){const r=await window.storage.get(k,false);return r&&r.value}return localStorage.getItem(k)}
+async function writeKey(k,v){if(HAS_CLOUD){const r=await window.storage.set(k,v,false);return !!r}localStorage.setItem(k,v);return true}
+const SNAP_IDX='bantay-pera-snaps';
+const SNAP_KEEP={auto:7,manual:10,before:5};
+async function snapIndex(){try{const v=await readKey(SNAP_IDX);return v?JSON.parse(v):[]}catch(e){return[]}}
+function snapSummary(d){const acc=(d.accounts||[]).reduce((s,a)=>{let b=+a.opening||0;for(const t of d.tx||[]){if(t.type==='in'&&t.acct===a.id)b+=t.amt;else if(t.type==='out'&&t.acct===a.id)b-=t.amt;else if(t.type==='xfer'){if(t.acct===a.id)b-=t.amt;if(t.to===a.id)b+=t.amt}}return s+b},0);
+  return{entries:(d.tx||[]).length,total:acc,debts:(d.debts||[]).length}}
+async function makeSnap(kind,label,data){
+  try{const d=data||S;const id='snap:'+Date.now().toString(36);
+    if(!await writeKey(id,JSON.stringify(d)))return false;
+    let idx=await snapIndex();idx.unshift({id,kind,label,ts:Date.now(),...snapSummary(d)});
+    const drop=[];for(const k of Object.keys(SNAP_KEEP)){const of=idx.filter(x=>x.kind===k);of.slice(SNAP_KEEP[k]).forEach(x=>drop.push(x.id))}
+    idx=idx.filter(x=>!drop.includes(x.id));for(const k of drop)await delStore(k);
+    await writeKey(SNAP_IDX,JSON.stringify(idx));return true}catch(e){return false}
+}
+async function dailySnap(){
+  const idx=await snapIndex();const last=idx.find(x=>x.kind==='auto');
+  if(S.tx.length+S.debts.length+S.bills.length===0)return;
+  if(!last||iso(new Date(last.ts))!==todayISO())await makeSnap('auto','Start of '+dayLabel(todayISO()));
+}
+async function load(){
+  try{const v=await readStore();if(v)S=migrate(JSON.parse(v))}catch(e){}
+  if(!HAS_CLOUD&&navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+  render();
+  dailySnap();
+}
+let saveTimer;
+function save(){clearTimeout(saveTimer);saveTimer=setTimeout(async()=>{
+  try{if(!await writeStore(JSON.stringify(S)))toast('Not saved. Copy a backup in Settings.')}
+  catch(e){toast('Not saved. Copy a backup in Settings.')}},250)}
+
+/* ---------- calculations ---------- */
+function balance(a){
+  let b=+a.opening||0;
+  for(const t of S.tx){
+    if(t.type==='in'&&t.acct===a.id)b+=t.amt;
+    else if(t.type==='out'&&t.acct===a.id)b-=t.amt;
+    else if(t.type==='xfer'){if(t.acct===a.id)b-=t.amt;if(t.to===a.id)b+=t.amt}
+  }
+  return b;
+}
+function inBook(t,book){return t.type!=='xfer'&&(book==='all'||t.book===book)}
+function earned(list,book){return sum(list.filter(t=>t.type==='in'&&t.cat!==BORROWED&&!(t.cat===DRAW&&book!=='me')),t=>t.amt)}
+function borrowed(list){return sum(list.filter(t=>t.type==='in'&&t.cat===BORROWED),t=>t.amt)}
+function spent(list){return sum(list.filter(t=>t.type==='out'&&t.cat!==DRAW),t=>t.amt)}
+function draws(list){return sum(list.filter(t=>t.type==='out'&&t.cat===DRAW),t=>t.amt)}
+function dueInMonth(b,m){if(b.freq==='monthly'||!b.freq)return true;const mo=+m.slice(5,7);
+  if(b.freq==='quarterly')return((mo-b.start)%3+3)%3===0;return mo===+b.start}
+function perMonth(b){return b.amt*({monthly:1,quarterly:1/3,yearly:1/12}[b.freq||'monthly'])}
+function fixDebt(d){d.kind=d.kind||'card';d.rate=+d.rate||0;if(d.kind==='inst'){d.rate=0;d.min=d.monthly;d.bal=Math.max(0,d.monthly*(d.term-d.paidMonths))}return d}
+function debtLeft(d){return d.kind==='inst'?Math.max(0,d.term-d.paidMonths):null}
+function debtPaidSoFar(d){return d.kind==='inst'?d.monthly*d.paidMonths:sum(S.tx.filter(t=>t.debt===d.id),t=>t.amt)}
+function lastPayMonth(d){const left=debtLeft(d);if(!left)return'';const cm=monthKey(todayISO());const paidNow=!!(S.paid[cm]||{})[d.id];return monthLabel(shiftMonth(cm,paidNow?left:left-1))}
+function cardEffect(t,sign){if(!String(t.acct).startsWith('card:'))return;const d=S.debts.find(x=>x.id===t.acct.slice(5));if(!d)return;d.bal=Math.max(0,d.bal+sign*(t.type==='out'?t.amt:-t.amt))}
+function undoTx(t){cardEffect(t,-1);if(t.debt){const d=S.debts.find(x=>x.id===t.debt);if(d){if(d.kind==='inst'){d.paidMonths=Math.max(0,d.paidMonths-1);fixDebt(d)}else d.bal+=t.amt}}}
+function dueItems(m,book){
+  const paid=S.paid[m]||{};
+  let items=S.bills.filter(b=>dueInMonth(b,m)&&(book==='all'||b.book===book))
+    .map(b=>({id:b.id,name:b.name,amt:b.amt,due:b.due,src:'bill',book:b.book,cat:b.cat,via:b.via,freq:b.freq}));
+  if(book==='all'||book==='me')items=items.concat(S.debts.filter(d=>d.bal>0||paid[d.id]).map(d=>({id:d.id,name:d.name,amt:Math.min(d.min,d.bal)||d.min,due:d.due,src:'debt',book:'me',cat:'Debt payment',via:'',inst:d.kind==='inst'})));
+  items.forEach(i=>i.paid=!!paid[i.id]);
+  return items.sort((a,b)=>a.due-b.due);
+}
+function monthlyInterest(){return sum(S.debts,d=>d.bal*d.rate/100)}
+function commission(tech,price,parts){if(tech.owner)return 0;const base=S.shop.base==='net'?Math.max(0,price-parts):price;return base*tech.pct/100}
+function jobsOn(day){return S.tx.filter(t=>t.job&&t.date===day)}
+function techDue(tech,day){
+  const jobs=jobsOn(day).filter(t=>t.job.tech===tech.id);
+  const comm=sum(jobs,t=>t.job.comm);
+  const allow=tech.rule==='always'?tech.allow:0;
+  return{jobs,comm,allow,total:comm+allow};
+}
+function payTx(techId,day){return S.tx.find(t=>t.pay&&t.pay.tech===techId&&t.pay.day===day)}
+function simulate(extra,method){
+  const ds=S.debts.filter(d=>d.bal>0).map(d=>({name:d.name,b:+d.bal,rate:+d.rate||0,min:+d.min,inst:d.kind==='inst'}));
+  if(!ds.length)return{months:0,interest:0,done:true,order:[]};
+  const budget=sum(ds,d=>d.min)+extra;let months=0,interest=0;const order=[];
+  while(ds.some(d=>d.b>0.5)&&months<600){months++;
+    ds.forEach(d=>{if(d.b>0&&!d.inst){const i=d.b*d.rate/100;d.b+=i;interest+=i}});
+    let left=budget;ds.forEach(d=>{if(d.b>0){const p=Math.min(d.min,d.b,left);d.b-=p;left-=p}});
+    let tg=ds.filter(d=>d.b>0&&!d.inst);if(!tg.length)tg=ds.filter(d=>d.b>0);
+    tg.sort(method==='avalanche'?(a,b)=>b.rate-a.rate||a.b-b.b:(a,b)=>a.b-b.b);
+    for(const d of tg){if(left<=0)break;const p=Math.min(left,d.b);d.b-=p;left-=p}
+    ds.forEach(d=>{if(d.b<=0.5&&!order.find(o=>o.name===d.name))order.push({name:d.name,month:months})});}
+  return{months,interest,done:!ds.some(d=>d.b>0.5),order};
+}
+function inMonths(n){const d=new Date();d.setMonth(d.getMonth()+n);return d.toLocaleDateString('en-PH',{month:'short',year:'numeric'})}
+function buyFees(a){const comm=Math.max(a*0.0025,S.invest.minComm);return comm*1.12+a*0.00005+a*0.0001}
+function buyThreshold(){let a=500;while(a<200000&&buyFees(a)/a>0.01)a+=50;return a}
+
+/* ---------- shared bits ---------- */
+function bookChips(cur,act,withAll=true){
+  const list=(withAll?[{id:'all',name:'All'}]:[]).concat(S.books);
+  return `<div class="chips scroll">`+list.map(b=>`<button class="chip" aria-pressed="${cur===b.id}" data-act="${act}" data-b="${b.id}">${esc(b.name)}</button>`).join('')+`</div>`;
+}
+function catBars(list){
+  const c={};list.filter(t=>t.type==='out'&&t.cat!==DRAW).forEach(t=>c[t.cat]=(c[t.cat]||0)+t.amt);
+  const e=Object.entries(c).sort((x,y)=>y[1]-x[1]);if(!e.length)return'';const mx=e[0][1];
+  return e.map(([k,v])=>`<div class="cat"><span>${esc(k)}</span><b>${peso(v)}</b><div class="track"><i style="width:${(v/mx*100).toFixed(1)}%"></i></div></div>`).join('');
+}
+function txRow(t){
+  if(t.type==='xfer')return `<li><div class="main"><div class="name">${esc(t.note||'Moved money')}</div><div class="meta">${dayLabel(t.date)} · ${esc(acctName(t.acct))} to ${esc(acctName(t.to))}</div></div><span class="amt">${peso(t.amt)}</span><button class="btn small ghost" data-act="deltx" data-id="${t.id}" aria-label="Delete">✕</button></li>`;
+  const extra=t.job?` · ${esc(techById(t.job.tech).name)}${t.job.parts?' · parts '+peso(t.job.parts):''}`:'';
+  return `<li><div class="main"><div class="name">${esc(t.note||t.cat)}</div><div class="meta">${dayLabel(t.date)} · ${esc(bookName(t.book))} · ${esc(t.cat)} · ${esc(acctName(t.acct))}${extra}</div></div>
+  <span class="amt ${t.type==='in'?'pos':'neg'}">${t.type==='in'?'+':'−'}${peso(t.amt)}</span>
+  <button class="btn small ghost" data-act="deltx" data-id="${t.id}" aria-label="Delete">✕</button></li>`;
+}
+
+/* ---------- views ---------- */
+function vHome(){
+  const accts=S.accounts.map(a=>({...a,bal:balance(a)}));
+  const total=sum(accts,a=>a.bal);
+  const sinceDl=S.lastDownload?Math.floor((Date.now()-S.lastDownload)/864e5):null;
+  let h=(S.tx.length>=5&&(sinceDl===null||sinceDl>=7))?`<section class="callout"><p>${sinceDl===null?'No backup file yet.':`Last backup file was ${sinceDl} days ago.`} Save one in case your phone or browser resets.</p><div class="chips" style="margin-top:8px"><button class="btn small" data-act="download">Download backup file</button></div></section>`:'';
+  h+=`<section class="panel"><h3>Where my money is now</h3>`+accts.map(a=>`<button class="acct" data-act="setbal" data-id="${a.id}">
+    <div><div>${esc(a.name)}</div><div class="k">${ACCT_KINDS[a.kind]}${a.goal?` · target ${peso(a.goal)}`:''}</div>${a.goal?`<div class="goal"><i style="width:${Math.min(100,Math.max(0,a.bal/a.goal*100)).toFixed(0)}%"></i></div>`:''}</div>
+    <b class="${a.bal<0?'neg':''}">${peso(a.bal)}</b></button>`).join('')+
+  `<div class="total"><span>Total</span><b>${peso(total)}</b></div>
+  <p class="hint">Tap an account to update its balance or move money from it.</p>
+  <div class="chips" style="margin-top:10px"><button class="btn small primary" data-act="xfer">Move money</button><button class="btn small" data-act="addtx">Add entry</button></div></section>`;
+  const m=viewMonth,book=homeBook;
+  const tx=S.tx.filter(t=>monthKey(t.date)===m&&inBook(t,book));
+  const inc=earned(tx,book),bor=borrowed(tx),out=spent(tx),dr=draws(tx);
+  const items=dueItems(m,book);const still=sum(items.filter(i=>!i.paid),i=>i.amt);
+  const gap=inc-out-still;const tot=Math.max(inc,out+still,1);const w=v=>(v/tot*100).toFixed(1)+'%';
+  const isCur=m===monthKey(todayISO());const td=new Date().getDate();
+  h+=`<section>${bookChips(book,'homebook')}</section>
+  <section class="monthnav"><button data-act="mprev" aria-label="Previous month">‹</button><h2>${monthLabel(m)}</h2><button data-act="mnext" aria-label="Next month">›</button></section>
+  <section class="hero">
+    <div class="row"><span>Money in (earned)</span><b>${peso(inc)}</b></div>
+    <div class="bar"><i class="seg in" style="width:${w(inc)}"></i></div>
+    <div class="row"><span>Spent + still due</span><b>${peso(out+still)}</b></div>
+    <div class="bar"><i class="seg out" style="width:${w(out)}"></i><i class="seg due" style="width:${w(still)}"></i></div>
+    <div class="legend"><span><i style="background:var(--red)"></i>Spent ${peso(out)}</span><span><i style="background:var(--red);opacity:.5"></i>Still due ${peso(still)}</span></div>
+    ${gap>=0?`<p class="verdict good">${peso(gap)} left after everything due</p>`:`<p class="verdict bad">Short by ${peso(-gap)} this month<small>This is what ends up on a card or loan if nothing changes.</small></p>`}
+    ${bor>0?`<p class="hint">Borrowed: <b class="neg">${peso(bor)}</b> (not counted as earned)</p>`:''}
+    ${dr>0&&book!=='all'&&book!=='me'?`<p class="hint">Owner's pay taken out: ${peso(dr)}</p>`:''}
+  </section>`;
+  if((book==='all'||book==='me')&&S.debts.some(d=>d.bal>0)){const mi=monthlyInterest();
+    h+=`<section class="callout red"><p>Your debts cost about <b>${peso(mi)}</b> a month in interest, roughly <b>${peso(mi/30)}</b> a day.</p></section>`}
+  h+=`<section class="panel"><h3>Due this month</h3>`;
+  if(!items.length)h+=`<p class="empty">Add bills and debts in their tabs. They'll show up here when due.</p>`;
+  else h+=`<ul class="list">`+items.map(i=>{const late=!i.paid&&isCur&&i.due<td;
+    return `<li class="${i.paid?'done':''}"><div class="day ${late?'late':''}"><b>${i.due}</b>${late?'late':'due'}</div>
+    <div class="main"><div class="name">${esc(i.name)}</div><div class="meta">${i.src==='debt'?(i.inst?'Installment':'Minimum payment'):esc(bookName(i.book))+(i.freq&&i.freq!=='monthly'?' · '+FREQ[i.freq]:'')}</div></div>
+    <span class="amt">${peso(i.amt)}</span>${i.paid?`<button class="btn small ghost" data-act="unpay" data-id="${i.id}">Undo</button>`:`<button class="btn small" data-act="pay" data-id="${i.id}">Paid</button>`}</li>`}).join('')+`</ul><p class="hint">Tapping Paid adds it to your log, so don't log it twice.</p>`;
+  return h+`</section>`;
+}
+
+function periodRange(){
+  const t=new Date(),today=todayISO();
+  if(period==='day')return[today,today];
+  if(period==='week'){const d=new Date(t);d.setDate(d.getDate()-(d.getDay()+6)%7);const e=new Date(d);e.setDate(d.getDate()+6);return[iso(d),iso(e)]}
+  if(period==='month'){const m=monthKey(today);return[m+'-01',m+'-31']}
+  return['0000','9999'];
+}
+function vLog(){
+  const[a,b]=periodRange();
+  const all=S.tx.filter(t=>t.date>=a&&t.date<=b).sort((x,y)=>y.date.localeCompare(x.date)||y.id.localeCompare(x.id));
+  const tx=all.filter(t=>logBook==='all'||t.book===logBook||(t.type==='xfer'&&logBook==='all'));
+  const bk=tx.filter(t=>inBook(t,logBook));
+  const inc=earned(bk,logBook),out=spent(bk),bor=borrowed(bk);
+  const chip=(k,l)=>`<button class="chip" aria-pressed="${period===k}" data-act="period" data-p="${k}">${l}</button>`;
+  let h=`<section>${bookChips(logBook,'logbook')}</section>
+  <section><div class="chips">${chip('day','Today')}${chip('week','Week')}${chip('month','Month')}${chip('all','All')}</div></section>
+  <section class="btnrow" style="grid-template-columns:2fr 1fr"><button class="btn primary" data-act="addtx">Add money in or out</button><button class="btn" data-act="xfer">Move money</button></section>
+  <section class="stats"><div class="stat"><span>In</span><b class="pos">${peso(inc)}</b></div><div class="stat"><span>Out</span><b class="neg">${peso(out)}</b></div><div class="stat"><span>Net</span><b class="${inc-out>=0?'pos':'neg'}">${peso(inc-out)}</b></div></section>`;
+  if(bor>0)h+=`<p class="hint">Plus ${peso(bor)} borrowed, kept out of "In".</p>`;
+  const bars=catBars(bk);if(bars)h+=`<section class="panel"><h3>Where it went</h3>${bars}</section>`;
+  h+=`<section class="panel"><h3>Entries</h3>`+(tx.length?`<ul class="list">${tx.map(txRow).join('')}</ul>`:`<p class="empty">Nothing logged here yet.</p>`)+`</section>`;
+  return h;
+}
+
+function vShop(){
+  const day=shopDay,m=monthKey(day);
+  const jobs=jobsOn(day);
+  const parts=S.tx.filter(t=>t.book==='fk'&&t.date===day&&(t.cat==='Parts'||t.cat==='Parts delivery'));
+  const workers=S.techs.filter(t=>!t.owner);
+  const dueAll=sum(workers,t=>techDue(t,day).total);
+  let h=`<section class="daynav"><button data-act="dprev" aria-label="Previous day">‹</button><input type="date" id="shopday" value="${day}"><button data-act="dnext" aria-label="Next day">›</button></section>
+  <section class="btnrow"><button class="btn primary" data-act="addjob">Repair job</button><button class="btn" data-act="addparts">Parts order</button><button class="btn" data-act="draw">Owner's pay</button></section>
+  <section class="stats"><div class="stat"><span>Repair sales</span><b class="pos">${peso(sum(jobs,t=>t.job.price))}</b></div><div class="stat"><span>Parts used</span><b>${peso(sum(jobs,t=>t.job.parts))}</b></div><div class="stat"><span>Tech pay due</span><b class="neg">${peso(dueAll)}</b></div></section>
+  <section class="panel"><h3>Jobs on ${dayLabel(day)}</h3>`;
+  h+=jobs.length?`<ul class="list">`+jobs.map(t=>`<li><div class="main"><div class="name">${esc(t.note||'Repair')}</div><div class="meta">${esc(techById(t.job.tech).name)} · parts ${peso(t.job.parts)}${t.job.comm?` · cut ${peso(t.job.comm)}`:''}</div></div><span class="amt pos">${peso(t.job.price)}</span><button class="btn small ghost" data-act="deltx" data-id="${t.id}" aria-label="Delete job">✕</button></li>`).join('')+`</ul>`:`<p class="empty">No jobs logged for this day.</p>`;
+  h+=`</section><section class="panel"><h3>Pay the techs</h3>`;
+  for(const t of workers){const d=techDue(t,day);const p=payTx(t.id,day);
+    h+=`<div class="techrow"><div><b>${esc(t.name)}</b><div class="meta">${d.jobs.length} job${d.jobs.length===1?'':'s'} · ${t.pct}% = ${peso(d.comm)}${d.allow?` · allowance ${peso(d.allow)}`:''}${t.rule==='manual'&&t.allow?` · can add ${peso(t.allow)} no-repair pay`:''}</div></div>
+    <div style="text-align:right"><b>${peso(p?p.amt:d.total)}</b><div>${p?`<button class="btn small ghost" data-act="deltx" data-id="${p.id}">Paid · undo</button>`:`<button class="btn small" data-act="paytech" data-id="${t.id}">Pay</button>`}</div></div></div>`}
+  h+=`<p class="hint">Cut is ${S.shop.base==='net'?'based on repair price minus parts':'based on the full repair price'}. Change rules in Settings.</p></section>`;
+  if(parts.length)h+=`<section class="panel"><h3>Parts bought this day</h3><ul class="list">${parts.map(txRow).join('')}</ul></section>`;
+  const mt=S.tx.filter(t=>t.book==='fk'&&monthKey(t.date)===m&&t.type!=='xfer');
+  const sales=earned(mt,'fk'),costs=spent(mt),dr=draws(mt);
+  h+=`<section class="panel"><h3>${monthLabel(m)} so far</h3><div class="pl"><span>Sales</span><b class="pos">${peso(sales)}</b><span>Costs</span><b class="neg">${peso(costs)}</b><span class="t">Shop profit</span><b class="t ${sales-costs>=0?'pos':'neg'}">${peso(sales-costs)}</b>${dr?`<span>Owner's pay taken</span><b>${peso(dr)}</b>`:''}</div>
+  <div style="margin-top:12px">${catBars(mt)}</div>
+  <table class="tbl" style="margin-top:8px"><tr><th>Tech</th><th>Jobs</th><th>Sales</th><th>Paid</th></tr>`+
+  S.techs.map(t=>{const js=mt.filter(x=>x.job&&x.job.tech===t.id);const pd=sum(mt.filter(x=>x.pay&&x.pay.tech===t.id),x=>x.amt);
+    return `<tr><td>${esc(t.name)}</td><td>${js.length}</td><td>${peso(sum(js,x=>x.job.price))}</td><td>${t.owner?'—':peso(pd)}</td></tr>`}).join('')+`</table></section>`;
+  return h;
+}
+
+function vBills(){
+  const list=S.bills.filter(b=>billBook==='all'||b.book===billBook);
+  const avg=sum(list,perMonth);const card=sum(list.filter(b=>/card/i.test(b.via||'')),perMonth);
+  let h=`<section>${bookChips(billBook,'billbook')}</section>
+  <section class="stats" style="grid-template-columns:1fr 1fr"><div class="stat"><span>Set aside per month</span><b>${peso(avg)}</b></div><div class="stat"><span>Charged to cards</span><b class="${card?'neg':''}">${peso(card)}</b></div></section>
+  <section><button class="btn primary wide" data-act="addbill">Add a bill</button>
+  ${!S.bills.some(b=>b.book==='fk')?`<button class="btn wide" style="margin-top:8px" data-act="shopbills">Add FoneKingdom's usual bills</button>`:''}
+  <p class="hint">Fixed amounts that repeat: rent, utilities, subscriptions, software activations, permits. Card balances and loans go in Debts.</p></section>`;
+  if(!list.length)return h+`<p class="empty">No bills here yet.</p>`;
+  for(const bk of S.books){const bs=list.filter(b=>b.book===bk.id).sort((a,b)=>a.due-b.due);if(!bs.length)continue;
+    h+=`<section class="panel"><h3>${esc(bk.name)} · ${peso(sum(bs,perMonth))}/month</h3><ul class="list">`+bs.map(b=>`<li><div class="day"><b>${b.due}</b>due</div>
+    <div class="main"><div class="name">${esc(b.name)}</div><div class="meta">${FREQ[b.freq||'monthly']}${b.freq&&b.freq!=='monthly'?' from '+MONTHS[b.start-1]:''}${b.via?' · '+esc(b.via):''}</div></div>
+    <span class="amt">${peso(b.amt)}</span><button class="btn small ghost" data-act="editbill" data-id="${b.id}">Edit</button></li>`).join('')+`</ul></section>`}
+  return h;
+}
+
+function vDebts(){
+  const live=S.debts.filter(d=>d.bal>0);const owed=sum(live,d=>d.bal),mins=sum(live,d=>d.min),mi=monthlyInterest();
+  let h=`<section class="stats"><div class="stat"><span>Total owed</span><b class="neg">${peso(owed)}</b></div><div class="stat"><span>Minimums</span><b>${peso(mins)}</b></div><div class="stat"><span>Interest/mo</span><b class="neg">${peso(mi)}</b></div></section>
+  <section><button class="btn primary wide" data-act="adddebt">Add a card or loan</button><p class="hint">Credit cards: update the balance from your statement monthly. Installment loans (fixed monthly payment for a set number of months): just tap Paid on Home each month and the count moves for you.</p></section>`;
+  if(S.debts.length)h+=`<section class="panel"><ul class="list">`+S.debts.map(d=>{
+    const lender=d.bank?esc(d.bank)+' · ':'';const paid=debtPaidSoFar(d);
+    if(d.kind==='inst'){const left=debtLeft(d);const pct=d.term?d.paidMonths/d.term*100:0;
+      return `<li><div class="main"><div class="name">${esc(d.name)}</div><div class="meta">${lender}${peso(d.monthly)}/mo · due ${d.due} · paid ${d.paidMonths} of ${d.term}${left?` · ${left} left, last in ${lastPayMonth(d)}`:''}</div><div class="meta">Paid so far ${peso(paid)}</div><div class="goal"><i style="width:${pct.toFixed(0)}%;background:var(--green)"></i></div></div>
+      <span class="amt ${d.bal>0?'neg':'pos'}">${d.bal>0?peso(d.bal):'Done'}</span>${d.bal>0?`<button class="btn small" data-act="paydebt" data-id="${d.id}">Pay</button>`:''}<button class="btn small ghost" data-act="editdebt" data-id="${d.id}">Edit</button></li>`}
+    return `<li><div class="main"><div class="name">${esc(d.name)}</div><div class="meta">${lender}${d.rate}%/mo · min ${peso(d.min)} · due ${d.due} · interest ${peso(d.bal*d.rate/100)}/mo</div>${paid?`<div class="meta">Paid so far ${peso(paid)}</div>`:''}</div>
+    <span class="amt ${d.bal>0?'neg':'pos'}">${d.bal>0?peso(d.bal):'Paid off'}</span>${d.bal>0?`<button class="btn small" data-act="paydebt" data-id="${d.id}">Pay</button>`:''}<button class="btn small ghost" data-act="editdebt" data-id="${d.id}">Edit</button></li>`}).join('')+`</ul></section>`;
+  if(live.length){const p=S.plan;const base=simulate(0,p.method),hun=simulate(3000,p.method),mine=simulate(p.extra,p.method);
+    const f=r=>r.done?`${r.months} mo`:'never',fi=r=>r.done?peso(r.interest):'—';
+    h+=`<section class="panel"><h3>Payoff plan</h3>
+    <div class="seg-toggle"><button class="neutral" aria-pressed="${p.method==='avalanche'}" data-act="method" data-m="avalanche">Highest interest first</button><button class="neutral" aria-pressed="${p.method==='snowball'}" data-act="method" data-m="snowball">Smallest balance first</button></div>
+    <label class="field"><span>Extra I can pay on top of minimums, per month</span><input inputmode="decimal" id="extra" value="${p.extra||''}" placeholder="0"></label>
+    <div class="scen"><span class="h">Plan</span><span class="h">Debt-free</span><span class="h">Interest paid</span>
+    <span>Required payments only</span><b>${f(base)}</b><b>${fi(base)}</b><span>+ ₱100 a day</span><b>${f(hun)}</b><b>${fi(hun)}</b><span>+ your extra</span><b>${f(mine)}</b><b>${fi(mine)}</b></div>`;
+    if(!base.done)h+=`<p class="callout red" style="margin-top:12px">At minimums only, interest grows faster than your payments. Some extra every month is the only way out.</p>`;
+    if(mine.done&&mine.order.length)h+=`<div class="groupname">Order with your plan</div><ul class="list">`+mine.order.map(o=>`<li><div class="main"><div class="name">${esc(o.name)}</div></div><span class="meta">paid by ${inMonths(o.month)}</span></li>`).join('')+`</ul>`;
+    if(base.done&&hun.done)h+=`<p class="callout green" style="margin-top:12px">₱100 a day on debt saves about <b>${peso(base.interest-hun.interest)}</b> in interest.</p>`;
+    h+=`</section>`}
+  return h;
+}
+
+function vInvest(){
+  const I=S.invest;const debt=sum(S.debts.filter(d=>d.bal>0),d=>d.bal);
+  const thr=buyThreshold(),fee=I.jar>0?buyFees(I.jar):0;
+  const mo=I.daily*30,r=I.rate/100/12,n=I.years*12,fv=r?mo*((Math.pow(1+r,n)-1)/r):mo*n;
+  const res=S.accounts.filter(a=>a.kind==='reserve');const resBal=sum(res,balance),resGoal=sum(res,a=>a.goal||0);
+  let h='';
+  if(debt>0)h+=`<section class="callout red"><p><b>Cards first.</b> You owe ${peso(debt)}. Stocks rarely beat card interest. Plan here, start buying once balances are gone.</p></section>`;
+  else if(resGoal&&resBal<resGoal)h+=`<section class="callout"><p><b>Emergency fund next.</b> ${peso(resBal)} of ${peso(resGoal)}. Fill it before buying stocks.</p></section>`;
+  h+=`<section class="panel"><h3>Savings jar</h3><div class="big">${peso(I.jar)}</div>
+  <p class="hint">${I.jar>=thr?`Ready to buy. Fees about ${peso(fee,1)} (${(fee/I.jar*100).toFixed(2)}%).`:`Buy once it reaches ${peso(thr)}, where fees drop under 1%.`}</p>
+  <div class="chips" style="margin-top:10px"><button class="btn small" data-act="jar" data-v="${I.daily}">Add ${peso(I.daily)}</button><button class="btn small" data-act="jarcustom">Add amount</button><button class="btn small" data-act="jarout">Take out</button></div></section>
+  <section class="panel"><h3>Projection</h3>
+  <div class="two"><label class="field"><span>Daily saving</span><input inputmode="decimal" data-inv="daily" value="${I.daily}"></label><label class="field"><span>Years</span><input inputmode="decimal" data-inv="years" value="${I.years}"></label></div>
+  <div class="two"><label class="field"><span>Yearly return %</span><input inputmode="decimal" data-inv="rate" value="${I.rate}"></label><label class="field"><span>Broker min. commission</span><input inputmode="decimal" data-inv="minComm" value="${I.minComm}"></label></div>
+  <p style="margin:0">${peso(mo)}/month for ${I.years} years at ${I.rate}% could grow to about <b>${peso(fv)}</b>. You'd put in ${peso(mo*n)}.</p><p class="hint">Not guaranteed. Check GStocks' real fees.</p></section>
+  <section class="panel"><h3>My stocks</h3>`+(I.holdings.length?`<ul class="list">`+I.holdings.map(x=>`<li><div class="main"><div class="name">${esc(x.sym)}</div><div class="meta">${x.shares.toLocaleString()} shares · avg ${peso(x.cost/x.shares,1)}</div></div><span class="amt">${peso(x.cost)}</span><button class="btn small ghost" data-act="delhold" data-sym="${esc(x.sym)}" aria-label="Remove">✕</button></li>`).join('')+`</ul>`:`<p class="empty">No buys recorded yet.</p>`)+
+  `<button class="btn wide" style="margin-top:10px" data-act="buy">Record a buy</button></section>`;
+  return h;
+}
+
+function vSettings(){
+  return `<section class="row"><h2>Settings</h2><button class="btn small" data-act="closeset">Done</button></section>
+  <section class="panel"><h3>Accounts</h3><ul class="list">`+S.accounts.map(a=>`<li><div class="main"><div class="name">${esc(a.name)}</div><div class="meta">${ACCT_KINDS[a.kind]} · ${peso(balance(a))} now${a.goal?' · target '+peso(a.goal):''}</div></div><button class="btn small ghost" data-act="editacct" data-id="${a.id}">Edit</button></li>`).join('')+`</ul><button class="btn small" data-act="addacct" style="margin-top:8px">Add account</button></section>
+  <section class="panel"><h3>Technicians</h3><ul class="list">`+S.techs.map(t=>`<li><div class="main"><div class="name">${esc(t.name)}</div><div class="meta">${t.owner?'Keeps the whole repair':`${t.pct}% cut · ${peso(t.allow)} ${t.rule==='always'?'every day':t.rule==='manual'?'only when I add it':''}`}</div></div><button class="btn small ghost" data-act="edittech" data-id="${t.id}">Edit</button></li>`).join('')+`</ul><button class="btn small" data-act="addtech" style="margin-top:8px">Add technician</button></section>
+  <section class="panel"><h3>Shop rules</h3>
+  <p class="hint" style="margin:0 0 6px">Tech cut is computed from</p>
+  <div class="seg-toggle"><button class="neutral" aria-pressed="${S.shop.base==='net'}" data-act="base" data-v="net">Price minus parts</button><button class="neutral" aria-pressed="${S.shop.base==='gross'}" data-act="base" data-v="gross">Full price</button></div></section>
+  <section class="panel"><h3>Businesses</h3><ul class="list">`+S.books.map(b=>`<li><div class="main"><div class="name">${esc(b.name)}</div></div>${b.id==='me'?'':`<button class="btn small ghost" data-act="editbook" data-id="${b.id}">Rename</button>`}</li>`).join('')+`</ul><button class="btn small" data-act="addbook" style="margin-top:8px">Add business</button></section>
+  <section class="panel"><h3>Restore points</h3><p class="hint" style="margin:0 0 10px">Saved automatically once a day and before any restore or erase. Go back to one if something goes wrong.</p>
+  <div id="snaps"><p class="empty">Loading…</p></div>
+  <button class="btn small" data-act="snapnow" style="margin-top:8px">Save restore point now</button></section>
+  <section class="panel"><h3>Backup file</h3><p class="hint" style="margin:0 0 10px">Restore points live inside this app. A backup file survives even if the app or browser is reset. Save one weekly and copy it to Google Drive.${S.lastDownload?` Last saved ${new Date(S.lastDownload).toLocaleDateString('en-PH',{month:'short',day:'numeric'})}.`:''}</p>
+  <div class="chips"><button class="btn small primary" data-act="download">Download backup file</button><button class="btn small" data-act="openfile">Load backup file</button><button class="btn small" data-act="export">Copy as text</button><button class="btn small" data-act="import">Paste text</button></div>
+  <input type="file" id="bkfile" accept=".json,application/json" hidden></section>
+  <section class="panel"><h3>Start over</h3><p class="hint" style="margin:0 0 10px">Clears everything back to a blank app. A restore point is saved first, so you can undo it.</p><button class="btn small danger" data-act="reset">Erase all</button></section>`;
+}
+
+/* ---------- dialogs ---------- */
+const dlg=document.getElementById('dlg'),dlgBody=document.getElementById('dlgBody');
+function openDlg(html,onSave){
+  dlgBody.innerHTML=html;dlg.showModal();
+  dlgBody.querySelector('[data-close]')?.addEventListener('click',()=>dlg.close());
+  const s=dlgBody.querySelector('[data-save]');if(s)s.addEventListener('click',()=>{if(onSave()!==false)dlg.close()});
+}
+const $=id=>dlgBody.querySelector('#'+id);
+const val=id=>$(id)?.value??'';
+const opts=(arr,sel)=>arr.map(o=>`<option ${o===sel?'selected':''}>${esc(o)}</option>`).join('');
+const acctOpts=(sel,card=true)=>{const cards=S.debts.filter(d=>d.kind!=='inst');
+  return S.accounts.map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${esc(a.name)}</option>`).join('')+
+  (card?(cards.length?`<optgroup label="Credit cards (adds to what you owe)">`+cards.map(d=>`<option value="card:${d.id}" ${'card:'+d.id===sel?'selected':''}>${esc(acctName('card:'+d.id))}</option>`).join('')+`</optgroup>`:`<option value="card" ${sel==='card'?'selected':''}>Credit card</option>`):'')}
+const bookOpts=sel=>S.books.map(b=>`<option value="${b.id}" ${b.id===sel?'selected':''}>${esc(b.name)}</option>`).join('');
+const btns=(label,del)=>`<div class="actions">${del?'<button class="btn danger grow" id="del" style="text-align:left">Delete</button>':''}<button class="btn" data-close>Cancel</button><button class="btn primary" data-save>${label}</button></div>`;
+
+function txDialog(presetAcct){
+  let type='out';const book0=(tab==='log'&&logBook!=='all')?logBook:(tab==='home'&&homeBook!=='all')?homeBook:'me';
+  S.lastAcct=S.lastAcct||{};
+  const pick=b=>presetAcct||S.lastAcct[b]||(b==='fk'?'drawer':'cash');
+  openDlg(`<h2>Add entry</h2>
+  <div class="seg-toggle"><button class="in" aria-pressed="false" data-type="in">Money in</button><button class="out" aria-pressed="true" data-type="out">Money out</button></div>
+  <label class="field"><span>Amount</span><input id="amt" inputmode="decimal" placeholder="0"></label>
+  <div class="two"><label class="field"><span id="acctlbl">Paid from</span><select id="acct">${acctOpts(pick(book0))}</select></label><label class="field"><span>For</span><select id="book">${bookOpts(book0)}</select></label></div>
+  <div class="two"><label class="field"><span>Category</span><select id="cat"></select></label><label class="field"><span>Date</span><input id="date" type="date" value="${todayISO()}"></label></div>
+  <label class="field"><span>Note</span><input id="note" placeholder="e.g. groceries, Lazada order"></label>
+  <div class="preview" id="pv"></div>${btns('Save entry')}`,
+  ()=>{const amt=num(val('amt'));if(amt<=0){toast('Enter an amount');return false}
+    const t={id:uid(),type,amt,book:val('book'),cat:val('cat'),acct:val('acct'),date:val('date')||todayISO(),note:val('note').trim()};
+    S.tx.push(t);cardEffect(t,1);if(!presetAcct)S.lastAcct[t.book]=t.acct;save();render();toast('Entry saved')});
+  const pv=()=>{const id=val('acct'),amt=num(val('amt'));const sg=type==='out'?-1:1;
+    if(id.startsWith('card:')){const d=S.debts.find(x=>x.id===id.slice(5));$('pv').innerHTML=d?`${esc(acctName(id))} owed after: <b>${peso(d.bal-sg*amt,1)}</b>`:'';return}
+    const a=S.accounts.find(x=>x.id===id);$('pv').innerHTML=a?`${esc(a.name)} after: <b>${peso(balance(a)+sg*amt,1)}</b>`:'Not linked to a card yet. Add the card in Debts to track it.'};
+  const fill=()=>{$('cat').innerHTML=opts(cats(val('book'),type));$('acctlbl').textContent=type==='in'?'Received in':'Paid from';pv()};
+  fill();$('book').addEventListener('change',()=>{if(!presetAcct)$('acct').value=pick(val('book'));fill()});
+  $('acct').addEventListener('change',pv);$('amt').addEventListener('input',pv);
+  dlgBody.querySelectorAll('[data-type]').forEach(b=>b.addEventListener('click',()=>{type=b.dataset.type;dlgBody.querySelectorAll('[data-type]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.type===type));fill()}));
+  setTimeout(()=>$('amt')?.focus(),50);
+}
+function xferDialog(from,to){
+  const routes=(S.routes||[]).filter(r=>S.accounts.some(a=>a.id===r.f)&&S.accounts.some(a=>a.id===r.t));
+  from=from||(routes[0]&&!to?routes[0].f:'cash');to=to||(routes[0]&&from===routes[0].f?routes[0].t:(from==='gcash'?'cash':'gcash'));
+  if(from===to)to=S.accounts.find(a=>a.id!==from).id;
+  openDlg(`<h2>Move money</h2>
+  ${routes.length?`<div class="chips" style="margin:-6px 0 12px">${routes.map((r,i)=>`<button class="chip" data-r="${i}">${esc(acctName(r.f))} → ${esc(acctName(r.t))}</button>`).join('')}</div>`:''}
+  <div class="two"><label class="field"><span>From</span><select id="from">${acctOpts(from,false)}</select></label><label class="field"><span>To</span><select id="to">${acctOpts(to,false)}</select></label></div>
+  <div class="two"><label class="field"><span>Amount</span><input id="amt" inputmode="decimal"></label><label class="field"><span>Fee (if any)</span><input id="fee" inputmode="decimal" placeholder="0"></label></div>
+  <div class="preview" id="pv"></div>
+  <div class="two"><label class="field"><span>Date</span><input id="date" type="date" value="${todayISO()}"></label><label class="field"><span>Note</span><input id="note" placeholder="Optional"></label></div>${btns('Move money')}`,
+  ()=>{const amt=num(val('amt')),fee=num(val('fee'));const f=val('from'),t=val('to');
+    if(amt<=0||f===t){toast('Pick an amount and two different accounts');return false}
+    const date=val('date')||todayISO();
+    S.tx.push({id:uid(),type:'xfer',amt,acct:f,to:t,date,note:val('note').trim()});
+    if(fee>0)S.tx.push({id:uid(),type:'out',amt:fee,book:'me',cat:'Other out',acct:f,date,note:'Transfer fee'});
+    S.routes=[{f,t}].concat((S.routes||[]).filter(r=>!(r.f===f&&r.t===t))).slice(0,4);
+    save();render();toast('Money moved')});
+  const acc=id=>S.accounts.find(a=>a.id===id);
+  const pv=()=>{const f=acc(val('from')),t=acc(val('to'));if(!f||!t)return;const amt=num(val('amt')),fee=num(val('fee'));
+    $('pv').innerHTML=`After: ${esc(f.name)} <b>${peso(balance(f)-amt-fee,1)}</b> · ${esc(t.name)} <b>${peso(balance(t)+amt,1)}</b>`};
+  dlgBody.querySelectorAll('[data-r]').forEach(b=>b.addEventListener('click',()=>{const r=routes[+b.dataset.r];$('from').value=r.f;$('to').value=r.t;pv();$('amt').focus()}));
+  ['amt','fee'].forEach(i=>$(i).addEventListener('input',pv));['from','to'].forEach(i=>$(i).addEventListener('change',pv));pv();
+  setTimeout(()=>$('amt')?.focus(),50);
+}
+function setBalDialog(id){
+  const a=S.accounts.find(x=>x.id===id);const cur=balance(a);
+  openDlg(`<h2>${esc(a.name)}</h2><p class="big" style="margin:-6px 0 12px">${peso(cur,1)}</p>
+  <div class="btnrow" style="margin-bottom:14px"><button class="btn primary" id="spend">Add entry</button><button class="btn" id="mvfrom">Move out</button><button class="btn" id="mvto">Move in</button></div>
+  <label class="field"><span>Actual balance (if the app is off)</span><input id="amt" inputmode="decimal" value="${Math.round(cur*100)/100}"></label>
+  <p class="hint" style="margin-top:-4px">Check your bank or GCash app and type what it shows.</p>${btns('Update balance')}`,
+  ()=>{const v=num(val('amt'));if(Math.abs(v-cur)<0.005)return;a.opening=(+a.opening||0)+v-cur;save();render();toast('Balance updated')});
+  $('spend').addEventListener('click',()=>{dlg.close();txDialog(id)});
+  $('mvfrom').addEventListener('click',()=>{dlg.close();xferDialog(id,null)});
+  $('mvto').addEventListener('click',()=>{dlg.close();xferDialog(null,id)});
+}
+function jobDialog(){
+  const techs=S.techs;
+  openDlg(`<h2>Repair job</h2>
+  <label class="field"><span>Done by</span><select id="tech">${techs.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></label>
+  <label class="field"><span>Job</span><input id="note" placeholder="e.g. iPhone 11 no power"></label>
+  <div class="two"><label class="field"><span>Customer paid</span><input id="price" inputmode="decimal"></label><label class="field"><span>Parts cost</span><input id="parts" inputmode="decimal" placeholder="0"></label></div>
+  <div class="preview" id="pv">Enter the price to see the split.</div>
+  <div class="two"><label class="field"><span>Received in</span><select id="acct">${acctOpts('drawer',false)}</select></label><label class="field"><span>Date</span><input id="date" type="date" value="${shopDay}"></label></div>
+  <p class="hint" style="margin-top:-4px">Parts cost here is only for the tech's cut. Log what you buy from suppliers with Parts order.</p>${btns('Save job')}`,
+  ()=>{const price=num(val('price')),parts=num(val('parts'));if(price<=0){toast('Enter what the customer paid');return false}
+    const t=techById(val('tech'));
+    S.tx.push({id:uid(),type:'in',amt:price,book:'fk',cat:'Repair job',acct:val('acct'),date:val('date')||shopDay,note:val('note').trim(),job:{tech:t.id,price,parts,comm:commission(t,price,parts)}});
+    save();render();toast('Job saved')});
+  const pv=()=>{const price=num(val('price')),parts=num(val('parts'));const t=techById(val('tech'));if(price<=0){$('pv').textContent='Enter the price to see the split.';return}
+    const c=commission(t,price,parts);$('pv').innerHTML=t.owner?`All yours: <b>${peso(price-parts)}</b> after parts.`:`${esc(t.name)} gets <b>${peso(c)}</b> · shop keeps <b>${peso(price-parts-c)}</b> after parts`};
+  ['price','parts','tech'].forEach(i=>$(i).addEventListener('input',pv));$('tech').addEventListener('change',pv);
+}
+function partsDialog(keep){
+  openDlg(`<h2>Parts order</h2>
+  <label class="field"><span>Supplier</span><input id="note" placeholder="e.g. supplier name, LCD + battery"></label>
+  <div class="two"><label class="field"><span>Parts total</span><input id="amt" inputmode="decimal"></label><label class="field"><span>Delivery fee</span><input id="fee" inputmode="decimal" placeholder="0"></label></div>
+  <div class="two"><label class="field"><span>Paid from</span><select id="acct">${acctOpts((keep&&keep.acct)||'drawer')}</select></label><label class="field"><span>Date</span><input id="date" type="date" value="${(keep&&keep.date)||shopDay}"></label></div>
+  <div class="actions"><button class="btn" data-close>Cancel</button><button class="btn" id="another">Save + next</button><button class="btn primary" data-save>Save order</button></div>`,saveParts);
+  $('another').addEventListener('click',()=>{const k={acct:val('acct'),date:val('date')};if(saveParts()!==false){toast('Saved. Next supplier.');partsDialog(k)}});
+  setTimeout(()=>$('note')?.focus(),50);
+}
+function saveParts(){
+  const amt=num(val('amt')),fee=num(val('fee'));if(amt<=0&&fee<=0){toast('Enter an amount');return false}
+  const base={book:'fk',acct:val('acct'),date:val('date')||shopDay,type:'out'};const note=val('note').trim();
+  if(amt>0)S.tx.push({...base,id:uid(),amt,cat:'Parts',note:note||'Parts'});
+  if(fee>0)S.tx.push({...base,id:uid(),amt:fee,cat:'Parts delivery',note:note?'Delivery: '+note:'Delivery'});
+  save();render();
+}
+function payTechDialog(id){
+  const t=techById(id);const d=techDue(t,shopDay);const opt=t.rule==='manual'&&t.allow>0;
+  openDlg(`<h2>Pay ${esc(t.name)}</h2><p class="hint" style="margin:-8px 0 12px">${dayLabel(shopDay)}: ${d.jobs.length} job(s), cut ${peso(d.comm)}${d.allow?`, allowance ${peso(d.allow)}`:''}.</p>
+  ${opt?`<label class="field" style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="addallow" style="width:auto"><span style="margin:0;color:var(--ink)">Add ${peso(t.allow)} no-repair pay</span></label>`:''}
+  <div class="two"><label class="field"><span>Amount</span><input id="amt" inputmode="decimal" value="${d.total}"></label><label class="field"><span>Paid from</span><select id="acct">${acctOpts('drawer',false)}</select></label></div>${btns('Mark paid')}`,
+  ()=>{const amt=num(val('amt'));if(amt<=0){toast('Enter an amount');return false}
+    S.tx.push({id:uid(),type:'out',amt,book:'fk',cat:'Tech pay',acct:val('acct'),date:shopDay,note:'Pay: '+t.name+($('addallow')?.checked?' (incl. no-repair pay)':''),pay:{tech:t.id,day:shopDay}});save();render();toast(t.name+' marked paid')});
+  $('addallow')?.addEventListener('change',e=>{$('amt').value=Math.round((d.total+(e.target.checked?t.allow:0))*100)/100});
+}
+function drawDialog(){
+  openDlg(`<h2>Owner's pay</h2><p class="hint" style="margin:-8px 0 12px">Move your share from a business to personal. Not counted as a business expense.</p>
+  <label class="field"><span>Amount</span><input id="amt" inputmode="decimal"></label>
+  <div class="two"><label class="field"><span>From business</span><select id="book">${S.books.filter(b=>b.id!=='me').map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('')}</select></label><label class="field"><span>Taken from</span><select id="from">${acctOpts('drawer',false)}</select></label></div>
+  <div class="two"><label class="field"><span>Put into</span><select id="to">${acctOpts('cash',false)}</select></label><label class="field"><span>Date</span><input id="date" type="date" value="${tab==='shop'?shopDay:todayISO()}"></label></div>${btns('Take pay')}`,
+  ()=>{const amt=num(val('amt'));if(amt<=0){toast('Enter an amount');return false}const date=val('date')||todayISO();
+    S.tx.push({id:uid(),type:'out',amt,book:val('book'),cat:DRAW,acct:val('from'),date,note:"Owner's pay"});
+    S.tx.push({id:uid(),type:'in',amt,book:'me',cat:DRAW,acct:val('to'),date,note:'From '+bookName(val('book'))});
+    save();render();toast("Owner's pay recorded")});
+}
+function billDialog(id){
+  const b=S.bills.find(x=>x.id===id)||{name:'',amt:'',due:5,book:billBook==='all'?'me':billBook,freq:'monthly',start:new Date().getMonth()+1,cat:'',via:''};
+  openDlg(`<h2>${id?'Edit bill':'Add a bill'}</h2>
+  <label class="field"><span>Name</span><input id="name" value="${esc(b.name)}" placeholder="e.g. Rent, Meralco, software activation"></label>
+  <div class="two"><label class="field"><span>Amount</span><input id="amt" inputmode="decimal" value="${b.amt}"></label><label class="field"><span>Due day</span><input id="due" inputmode="numeric" value="${b.due}"></label></div>
+  <div class="two"><label class="field"><span>For</span><select id="book">${bookOpts(b.book)}</select></label><label class="field"><span>Category</span><select id="cat"></select></label></div>
+  <div class="two"><label class="field"><span>How often</span><select id="freq">${Object.entries(FREQ).map(([k,l])=>`<option value="${k}" ${k===(b.freq||'monthly')?'selected':''}>${l}</option>`).join('')}</select></label>
+  <label class="field" id="startf"><span>First due month</span><select id="start">${MONTHS.map((n,i)=>`<option value="${i+1}" ${i+1===+b.start?'selected':''}>${n}</option>`).join('')}</select></label></div>
+  <label class="field"><span>Usually paid with</span><input id="via" value="${esc(b.via||'')}" placeholder="Cash, GCash, card…"></label>${btns('Save bill',!!id)}`,
+  ()=>{const amt=num(val('amt')),name=val('name').trim();if(!name||amt<=0){toast('Add a name and amount');return false}
+    const nb={id:id||uid(),name,amt,due:Math.min(31,Math.max(1,Math.round(num(val('due'))||1))),book:val('book'),cat:val('cat'),freq:val('freq'),start:+val('start'),via:val('via').trim()};
+    if(id)Object.assign(b,nb);else S.bills.push(nb);save();render();toast('Bill saved')});
+  const fill=()=>{const c=cats(val('book'),'out').filter(x=>x!==DRAW);$('cat').innerHTML=opts(c,c.includes(b.cat)?b.cat:c[0])};
+  const sf=()=>{$('startf').style.visibility=val('freq')==='monthly'?'hidden':'visible'};
+  fill();sf();$('book').addEventListener('change',fill);$('freq').addEventListener('change',sf);
+  $('del')?.addEventListener('click',()=>{S.bills=S.bills.filter(x=>x.id!==id);save();render();dlg.close();toast('Bill deleted')});
+}
+function addShopBills(){
+  const mk=(name,amt,cat,freq='monthly',start=1)=>({id:uid(),name,amt,due:5,book:'fk',cat,freq,start,via:'Cash'});
+  S.bills.push(mk('Shop rent',11000,'Rent'),mk('Electricity',1750,'Utilities'),mk('Water',500,'Utilities'),mk('Internet',1300,'Internet'),mk("Mayor's office (city)",3200,'Permits & fees','quarterly',1));
+  billBook='fk';save();render();toast('Added. Set the real due days and first month for the city payment.');
+}
+function debtDialog(id){
+  const d=S.debts.find(x=>x.id===id)||{kind:'card',name:'',bank:'',bal:'',rate:3,min:'',due:15,monthly:'',term:'',paidMonths:0};
+  let kind=d.kind||'card';
+  openDlg(`<h2>${id?'Edit debt':'Add a card or loan'}</h2>
+  <div class="seg-toggle"><button class="neutral" aria-pressed="${kind==='card'}" data-k="card">Credit card balance</button><button class="neutral" aria-pressed="${kind==='inst'}" data-k="inst">Installment loan</button></div>
+  <div class="two"><label class="field"><span>Bank / lender</span><input id="bank" value="${esc(d.bank||'')}" placeholder="e.g. BDO, Metrobank"></label><label class="field"><span>Name</span><input id="name" value="${esc(d.name)}" placeholder="e.g. Cash loan, card"></label></div>
+  <div id="cardf"><div class="two"><label class="field"><span>Amount I owe now</span><input id="bal" inputmode="decimal" value="${d.kind==='inst'?'':d.bal}"></label><label class="field"><span>Interest % per month</span><input id="rate" inputmode="decimal" value="${d.kind==='inst'?3:d.rate}"></label></div>
+  <label class="field"><span>Minimum payment</span><input id="min" inputmode="decimal" value="${d.kind==='inst'?'':d.min}"></label></div>
+  <div id="instf"><div class="two"><label class="field"><span>Monthly payment</span><input id="monthly" inputmode="decimal" value="${d.monthly||''}"></label><label class="field"><span>Total months</span><input id="term" inputmode="numeric" value="${d.term||''}" placeholder="e.g. 24"></label></div>
+  <label class="field"><span>Months already paid</span><input id="pm" inputmode="numeric" value="${d.paidMonths||0}"></label>
+  <div class="preview" id="pv"></div></div>
+  <label class="field"><span>Due day</span><input id="due" inputmode="numeric" value="${d.due}"></label>${btns('Save debt',!!id)}`,
+  ()=>{const name=val('name').trim()||val('bank').trim();if(!name){toast('Add a bank or name');return false}
+    const due=Math.min(31,Math.max(1,Math.round(num(val('due'))||1)));let nd;
+    if(kind==='inst'){const monthly=num(val('monthly')),term=Math.round(num(val('term'))),pm=Math.round(num(val('pm')));
+      if(monthly<=0||term<=0){toast('Enter monthly payment and total months');return false}
+      nd=fixDebt({id:id||uid(),kind,name,bank:val('bank').trim(),monthly,term,paidMonths:Math.min(term,Math.max(0,pm)),due});}
+    else nd={id:id||uid(),kind,name,bank:val('bank').trim(),bal:num(val('bal')),rate:num(val('rate')),min:num(val('min')),due};
+    if(id){Object.keys(d).forEach(k=>delete d[k]);Object.assign(d,nd)}else S.debts.push(nd);save();render();toast('Debt saved')});
+  const show=()=>{$('cardf').style.display=kind==='card'?'':'none';$('instf').style.display=kind==='inst'?'':'none';dlgBody.querySelectorAll('[data-k]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.k===kind))};
+  const pv=()=>{const m=num(val('monthly')),t=Math.round(num(val('term'))),p=Math.round(num(val('pm')));
+    $('pv').innerHTML=m>0&&t>0?`Paid so far <b>${peso(m*Math.min(p,t))}</b> · still owe <b>${peso(m*Math.max(0,t-p))}</b> · <b>${Math.max(0,t-p)}</b> months left`:'Enter the monthly payment and number of months.'};
+  dlgBody.querySelectorAll('[data-k]').forEach(b=>b.addEventListener('click',()=>{kind=b.dataset.k;show()}));
+  ['monthly','term','pm'].forEach(i=>$(i).addEventListener('input',pv));show();pv();
+  $('del')?.addEventListener('click',()=>{S.debts=S.debts.filter(x=>x.id!==id);save();render();dlg.close();toast('Debt deleted')});
+}
+function payDialog(itemId){
+  const m=viewMonth;const it=dueItems(m,'all').find(i=>i.id===itemId);if(!it)return;
+  const date=m===monthKey(todayISO())?todayISO():m+'-'+pad(Math.min(it.due,28));
+  const guess=/card/i.test(it.via||'')?'card':/gcash/i.test(it.via||'')?'gcash':/bank/i.test(it.via||'')?'bank':it.book==='fk'?'drawer':'cash';
+  openDlg(`<h2>Mark ${esc(it.name)} paid</h2>
+  <div class="two"><label class="field"><span>Amount paid</span><input id="amt" inputmode="decimal" value="${it.amt}"></label><label class="field"><span>Paid from</span><select id="acct">${acctOpts(guess)}</select></label></div>
+  ${it.src==='debt'?`<p class="hint" style="margin-top:-4px">${it.inst?'This counts as one month paid.':'This also lowers the debt balance.'}</p>`:''}${btns('Mark paid')}`,
+  ()=>{const amt=num(val('amt'));if(amt<=0){toast('Enter an amount');return false}
+    const tx={id:uid(),type:'out',amt,book:it.book,cat:it.cat||'Bills',acct:val('acct'),date,note:it.name};if(it.src==='debt')tx.debt=it.id;
+    S.tx.push(tx);cardEffect(tx,1);(S.paid[m]=S.paid[m]||{})[it.id]={tx:tx.id,amt};
+    if(it.src==='debt'){const d=S.debts.find(x=>x.id===it.id);if(d){if(d.kind==='inst'){d.paidMonths=Math.min(d.term,d.paidMonths+1);fixDebt(d)}else d.bal=Math.max(0,d.bal-amt)}}
+    save();render();toast('Marked paid')});
+}
+function payDebtDialog(id){
+  const d=S.debts.find(x=>x.id===id);if(!d)return;const cm=monthKey(todayISO());
+  if(d.kind==='inst'){viewMonth=cm;if((S.paid[cm]||{})[id]){toast('This month is already paid');return}payDialog(id);return}
+  const bankGuess=(S.accounts.find(a=>a.kind==='bank')||S.accounts[0]).id;
+  openDlg(`<h2>Pay ${esc(acctName('card:'+d.id).replace(' (card)',''))}</h2><p class="hint" style="margin:-8px 0 12px">Owe ${peso(d.bal)} · minimum ${peso(d.min)}</p>
+  <div class="two"><label class="field"><span>Amount</span><input id="amt" inputmode="decimal" value="${d.min}"></label><label class="field"><span>Paid from</span><select id="acct">${acctOpts(S.lastPay||bankGuess,false)}</select></label></div>
+  <label class="field"><span>Date</span><input id="date" type="date" value="${todayISO()}"></label><div class="preview" id="pv"></div>${btns('Record payment')}`,
+  ()=>{const amt=num(val('amt'));if(amt<=0){toast('Enter an amount');return false}const date=val('date')||todayISO();
+    const tx={id:uid(),type:'out',amt,book:'me',cat:'Debt payment',acct:val('acct'),date,note:d.name,debt:d.id};S.tx.push(tx);d.bal=Math.max(0,d.bal-amt);S.lastPay=val('acct');
+    const m=monthKey(date);if(!(S.paid[m]||{})[d.id])(S.paid[m]=S.paid[m]||{})[d.id]={tx:tx.id,amt};
+    save();render();toast('Payment recorded')});
+  const pv=()=>{const a=S.accounts.find(x=>x.id===val('acct')),amt=num(val('amt'));$('pv').innerHTML=`${esc(a.name)} after: <b>${peso(balance(a)-amt,1)}</b> · card owed after: <b>${peso(Math.max(0,d.bal-amt),1)}</b>`};
+  $('amt').addEventListener('input',pv);$('acct').addEventListener('change',pv);pv();
+}
+function unpay(itemId){const m=viewMonth;const p=(S.paid[m]||{})[itemId];if(!p)return;
+  const pt=S.tx.find(t=>t.id===p.tx);if(pt)cardEffect(pt,-1);S.tx=S.tx.filter(t=>t.id!==p.tx);const d=S.debts.find(x=>x.id===itemId);if(d){if(d.kind==='inst'){d.paidMonths=Math.max(0,d.paidMonths-1);fixDebt(d)}else d.bal+=p.amt}
+  delete S.paid[m][itemId];save();render();toast('Payment undone')}
+function acctDialog(id){
+  const a=S.accounts.find(x=>x.id===id)||{name:'',kind:'bank',goal:0,opening:0};const used=id&&S.tx.some(t=>t.acct===id||t.to===id);
+  const cur=id?balance(a):0;
+  openDlg(`<h2>${id?'Edit account':'Add account'}</h2>
+  <label class="field"><span>Name</span><input id="name" value="${esc(a.name)}" placeholder="e.g. BDO, BPI, Maya"></label>
+  <div class="two"><label class="field"><span>Type</span><select id="kind">${Object.entries(ACCT_KINDS).map(([k,l])=>`<option value="${k}" ${k===a.kind?'selected':''}>${l}</option>`).join('')}</select></label>
+  <label class="field"><span>Available balance now</span><input id="bal" inputmode="decimal" value="${id?Math.round(cur*100)/100:''}" placeholder="0"></label></div>
+  <label class="field"><span>Savings target (optional)</span><input id="goal" inputmode="decimal" value="${a.goal||''}" placeholder="Leave blank if none"></label>
+  <p class="hint" style="margin-top:-6px">Target is only for money you're building up, like the emergency fund or an investing fund. It shows as a progress bar.</p>
+  ${used?'<p class="hint">This account has entries, so it can\'t be deleted.</p>':''}${btns('Save account',!!id&&!used)}`,
+  ()=>{const name=val('name').trim();if(!name){toast('Add a name');return false}
+    const bal=num(val('bal'));
+    if(id){Object.assign(a,{name,kind:val('kind'),goal:num(val('goal'))});a.opening=(+a.opening||0)+bal-cur}
+    else S.accounts.push({id:uid(),name,kind:val('kind'),goal:num(val('goal')),opening:bal});
+    save();render();toast('Account saved')});
+  $('del')?.addEventListener('click',()=>{S.accounts=S.accounts.filter(x=>x.id!==id);save();render();dlg.close()});
+}
+function techDialog(id){
+  const t=S.techs.find(x=>x.id===id)||{name:'',pct:20,allow:0,rule:'always'};
+  if(t.owner){openDlg(`<h2>Edit name</h2><label class="field"><span>Name</span><input id="name" value="${esc(t.name)}"></label>${btns('Save')}`,()=>{t.name=val('name').trim()||'Me';save();render()});return}
+  const used=id&&S.tx.some(x=>(x.job&&x.job.tech===id)||(x.pay&&x.pay.tech===id));
+  openDlg(`<h2>${id?'Edit technician':'Add technician'}</h2>
+  <label class="field"><span>Name</span><input id="name" value="${esc(t.name)}"></label>
+  <div class="two"><label class="field"><span>Cut per repair (%)</span><input id="pct" inputmode="decimal" value="${t.pct}"></label><label class="field"><span>Allowance amount</span><input id="allow" inputmode="decimal" value="${t.allow}"></label></div>
+  <label class="field"><span>Allowance is given</span><select id="rule"><option value="always" ${t.rule==='always'?'selected':''}>Every day, even with jobs</option><option value="manual" ${t.rule==='manual'?'selected':''}>Only when I add it (e.g. no-repair days)</option><option value="none" ${t.rule==='none'?'selected':''}>Never</option></select></label>
+  ${used?'<p class="hint">Has job history, so can\'t be deleted.</p>':''}${btns('Save technician',!!id&&!used)}`,
+  ()=>{const name=val('name').trim();if(!name){toast('Add a name');return false}
+    const nt={name,pct:num(val('pct')),allow:num(val('allow')),rule:val('rule')};if(id)Object.assign(t,nt);else S.techs.push({id:uid(),...nt});save();render();toast('Saved')});
+  $('del')?.addEventListener('click',()=>{S.techs=S.techs.filter(x=>x.id!==id);save();render();dlg.close()});
+}
+function bookDialog(id){
+  const b=S.books.find(x=>x.id===id)||{name:''};
+  openDlg(`<h2>${id?'Rename business':'Add business'}</h2><label class="field"><span>Name</span><input id="name" value="${esc(b.name)}"></label>${btns('Save')}`,
+  ()=>{const name=val('name').trim();if(!name)return false;if(id)b.name=name;else S.books.push({id:uid(),name});save();render()});
+}
+function buyDialog(){
+  openDlg(`<h2>Record a buy</h2><label class="field"><span>Stock symbol</span><input id="sym" placeholder="e.g. FMETF"></label>
+  <div class="two"><label class="field"><span>Shares</span><input id="shares" inputmode="numeric"></label><label class="field"><span>Price per share</span><input id="price" inputmode="decimal"></label></div>
+  <p class="hint" id="fl" style="margin-top:-4px">Fees are estimated and added to your cost.</p>${btns('Record buy')}`,
+  ()=>{const sym=val('sym').trim().toUpperCase(),sh=num(val('shares')),pr=num(val('price'));if(!sym||sh<=0||pr<=0){toast('Fill in symbol, shares and price');return false}
+    const g=sh*pr,cost=g+buyFees(g);const h=S.invest.holdings.find(x=>x.sym===sym);if(h){h.shares+=sh;h.cost+=cost}else S.invest.holdings.push({sym,shares:sh,cost});
+    S.invest.jar=Math.max(0,S.invest.jar-cost);save();render();toast('Buy recorded')});
+  const u=()=>{const g=num(val('shares'))*num(val('price'));$('fl').textContent=g>0?`${peso(g)} + about ${peso(buyFees(g),1)} fees. Comes out of your jar.`:'Fees are estimated and added to your cost.'};
+  $('shares').addEventListener('input',u);$('price').addEventListener('input',u);
+}
+function amountDialog(title,cb){openDlg(`<h2>${title}</h2><label class="field"><span>Amount</span><input id="amt" inputmode="decimal"></label>${btns('Save')}`,()=>{const a=num(val('amt'));if(a<=0){toast('Enter an amount');return false}cb(a)})}
+
+/* ---------- render & events ---------- */
+const ICONS={home:'<path d="M4 11l8-7 8 7v9H4zM10 20v-5h4v5"/>',log:'<path d="M5 4h14v16H5zM9 9h6M9 13h6M9 17h3"/>',shop:'<path d="M8 3h8v18H8zM11 18h2"/>',
+  bills:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"/>',debts:'<path d="M3 7h18v10H3zM3 11h18M7 15h3"/>',invest:'<path d="M4 19l5-6 4 3 7-9M15 7h5v5"/>'};
+const LABELS={home:'Home',log:'Log',shop:'Shop',bills:'Bills',debts:'Debts',invest:'Invest'};
+async function renderSnaps(){
+  const el=document.getElementById('snaps');if(!el)return;const idx=await snapIndex();
+  if(!idx.length){el.innerHTML='<p class="empty">None yet. The first one is saved tomorrow, or tap the button below.</p>';return}
+  el.innerHTML='<ul class="list">'+idx.map(x=>`<li><div class="main"><div class="name">${esc(x.label)}</div><div class="meta">${new Date(x.ts).toLocaleString('en-PH',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})} · ${x.entries} entries · ${peso(x.total)} in accounts</div></div><button class="btn small" data-act="snaprestore" data-id="${x.id}">Restore</button><button class="btn small ghost" data-act="snapdel" data-id="${x.id}" aria-label="Delete restore point">✕</button></li>`).join('')+'</ul>';
+}
+async function restoreData(d,msg){await makeSnap('before','Before '+msg.toLowerCase());S=migrate(d);save();render();toast(msg+' done')}
+function render(){
+  document.getElementById('tabs').innerHTML=Object.keys(LABELS).map(k=>`<button data-tab="${k}" ${tab===k?'aria-current="page"':''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k]}</svg>${LABELS[k]}</button>`).join('');
+  document.getElementById('view').innerHTML={home:vHome,log:vLog,shop:vShop,bills:vBills,debts:vDebts,invest:vInvest,settings:vSettings}[tab]();
+  if(tab==='settings')renderSnaps();
+}
+document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;tab=b.dataset.tab;render();window.scrollTo(0,0)});
+document.getElementById('gear').addEventListener('click',()=>{if(tab!=='settings'){prevTab=tab;tab='settings'}else tab=prevTab;render();window.scrollTo(0,0)});
+document.getElementById('view').addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,id=b.dataset.id;
+  const A={
+    mprev:()=>{viewMonth=shiftMonth(viewMonth,-1);render()},mnext:()=>{viewMonth=shiftMonth(viewMonth,1);render()},
+    homebook:()=>{homeBook=b.dataset.b;render()},logbook:()=>{logBook=b.dataset.b;render()},billbook:()=>{billBook=b.dataset.b;render()},
+    dprev:()=>{shopDay=shiftDay(shopDay,-1);render()},dnext:()=>{shopDay=shiftDay(shopDay,1);render()},
+    pay:()=>payDialog(id),unpay:()=>unpay(id),period:()=>{period=b.dataset.p;render()},
+    addtx:txDialog,xfer:xferDialog,setbal:()=>setBalDialog(id),
+    deltx:()=>{if(!confirm('Delete this entry?'))return;const tt=S.tx.find(t=>t.id===id);if(tt)undoTx(tt);S.tx=S.tx.filter(t=>t.id!==id);for(const m in S.paid)for(const k in S.paid[m])if(S.paid[m][k].tx===id)delete S.paid[m][k];save();render()},
+    addjob:jobDialog,addparts:partsDialog,draw:drawDialog,paytech:()=>payTechDialog(id),
+    addbill:()=>billDialog(),editbill:()=>billDialog(id),shopbills:addShopBills,
+    download:()=>{try{S.lastDownload=Date.now();save();const b=new Blob([JSON.stringify(S)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='bantay-pera-backup-'+todayISO()+'.json';document.body.appendChild(a);a.click();a.remove();toast('Backup file saved to Downloads');render()}catch(_){toast('Download not available here. Use Copy backup.')}},
+    adddebt:()=>debtDialog(),paydebt:()=>payDebtDialog(id),editdebt:()=>debtDialog(id),method:()=>{S.plan.method=b.dataset.m;save();render()},
+    jar:()=>{S.invest.jar+=num(b.dataset.v);save();render();toast('Added to jar')},
+    jarcustom:()=>amountDialog('Add to jar',v=>{S.invest.jar+=v;save();render()}),
+    jarout:()=>amountDialog('Take out of jar',v=>{S.invest.jar=Math.max(0,S.invest.jar-v);save();render()}),
+    buy:buyDialog,delhold:()=>{if(confirm('Remove this stock?')){S.invest.holdings=S.invest.holdings.filter(x=>x.sym!==b.dataset.sym);save();render()}},
+    closeset:()=>{tab=prevTab;render()},editacct:()=>acctDialog(id),addacct:()=>acctDialog(),edittech:()=>techDialog(id),addtech:()=>techDialog(),
+    editbook:()=>bookDialog(id),addbook:()=>bookDialog(),base:()=>{S.shop.base=b.dataset.v;save();render()},
+    export:()=>{const txt=JSON.stringify(S);openDlg(`<h2>Backup</h2><p class="hint" style="margin:0 0 8px">Copy everything below and keep it in your notes.</p><textarea id="bk" readonly>${esc(txt)}</textarea><div class="actions"><button class="btn" data-close>Close</button><button class="btn primary" id="cp">Copy</button></div>`);
+      $('cp').addEventListener('click',async()=>{$('bk').select();try{await navigator.clipboard.writeText(txt)}catch(_){document.execCommand('copy')}toast('Backup copied')})},
+    import:()=>openDlg(`<h2>Restore backup</h2><p class="hint" style="margin:0 0 8px">Paste a backup. This replaces what's in the app now.</p><textarea id="bk"></textarea>${btns('Restore')}`,
+      ()=>{let d;try{d=JSON.parse(val('bk'));if(!Array.isArray(d.tx))throw 0}catch(_){toast('That backup text is not valid');return false}restoreData(d,'Restore backup')}),
+    reset:()=>{if(confirm('Erase everything? A restore point is saved first so you can undo this.'))restoreData(defaults(),'Erase all')},
+    snapnow:()=>openDlg(`<h2>Save restore point</h2><label class="field"><span>Name (optional)</span><input id="nm" placeholder="e.g. All balances checked"></label>${btns('Save')}`,
+      ()=>{makeSnap('manual',val('nm').trim()||'Saved by me').then(ok=>{toast(ok?'Restore point saved':'Could not save. Download a backup file instead.');render()})}),
+    snaprestore:async()=>{const idx=await snapIndex();const x=idx.find(y=>y.id===id);if(!x)return;
+      if(!confirm(`Go back to "${x.label}"? Your current data is saved as a restore point first.`))return;
+      try{const d=JSON.parse(await readKey(id));await restoreData(d,'Restore point')}catch(_){toast('That restore point could not be read')}},
+    snapdel:async()=>{if(!confirm('Delete this restore point?'))return;let idx=await snapIndex();idx=idx.filter(y=>y.id!==id);await delStore(id);await writeKey(SNAP_IDX,JSON.stringify(idx));renderSnaps()},
+    openfile:()=>{const f=document.getElementById('bkfile');f.value='';f.onchange=()=>{const file=f.files[0];if(!file)return;const r=new FileReader();
+      r.onload=()=>{let d;try{d=JSON.parse(r.result);if(!Array.isArray(d.tx))throw 0}catch(_){toast('That file is not a Bantay Pera backup');return}
+        if(confirm('Load this backup file? Your current data is saved as a restore point first.'))restoreData(d,'Load backup file')};r.readAsText(file)};f.click()}
+  };
+  A[a]&&A[a]();
+});
+document.getElementById('view').addEventListener('change',e=>{
+  if(e.target.id==='extra'){S.plan.extra=num(e.target.value);save();render()}
+  else if(e.target.id==='shopday'&&e.target.value){shopDay=e.target.value;render()}
+  else if(e.target.id==='deliv'){S.shop.delivery=num(e.target.value);save()}
+  const k=e.target.dataset.inv;if(k){S.invest[k]=num(e.target.value);save();render()}
+});
+dlg.addEventListener('click',e=>{if(e.target===dlg)dlg.close()});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')dailySnap()});
+load();
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script>
+</body>
+</html>
