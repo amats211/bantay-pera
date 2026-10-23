@@ -148,6 +148,12 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
 .tbl td{text-align:right;padding:6px 0;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
 .chips.scroll{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}
 .chips.scroll .chip{white-space:nowrap}
+.dgh{display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:12px;margin-top:10px;font-size:13px}
+.dgh:first-of-type{border-top:0;padding-top:0}
+.qrow{display:grid;grid-template-columns:1fr 1fr auto;gap:8px}
+.qrow input,.qrow select,.qnote{padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);min-width:0}
+.qrow input{font-size:18px;font-weight:700}
+.qnote{width:100%;margin-top:8px}
 .preview{background:var(--bluebg);border-radius:10px;padding:10px 12px;font-size:14px;margin:-2px 0 12px}
 </style>
 </head>
@@ -167,7 +173,7 @@ const BORROWED='Borrowed (card/loan)';
 const DRAW='Owner draw';
 const BOOKCATS={
   me:{in:['Salary',DRAW,'Side income',BORROWED,'Other in'],
-      out:['Food','Transport','Utilities','Bills','Subscriptions','Debt payment','Family','Load & data','Personal','Other out']},
+      out:['Food','Snacks','Transport','Utilities','Bills','Subscriptions','Debt payment','Family','Load & data','Personal','Other out']},
   fk:{in:['Repair job','Accessories sales','Other shop income',BORROWED],
       out:['Parts','Parts delivery','Tech pay','Rent','Utilities','Internet','Permits & fees','Software & tools','Supplies',DRAW,'Other shop expense']},
   ct:{in:['Winbliter8 activations','Kurso.ph courses','Other online income',BORROWED],
@@ -379,6 +385,36 @@ function txRow(t){
 }
 
 /* ---------- views ---------- */
+function dueGroups(items){
+  const g=[{key:'debt',name:'Debts & loans',items:items.filter(i=>i.src==='debt')},
+    {key:'sub',name:'Subscriptions',items:items.filter(i=>i.src!=='debt'&&i.cat==='Subscriptions')}];
+  for(const b of S.books)g.push({key:b.id,name:b.id==='me'?'Personal bills':b.name,items:items.filter(i=>i.src!=='debt'&&i.cat!=='Subscriptions'&&i.book===b.id)});
+  const known=new Set(S.books.map(b=>b.id));
+  g.push({key:'other',name:'Other',items:items.filter(i=>i.src!=='debt'&&i.cat!=='Subscriptions'&&!known.has(i.book))});
+  return g.filter(x=>x.items.length);
+}
+const QUICK=[['Food','Food'],['Fare','Transport'],['Load','Load & data'],['Snacks','Snacks'],['Personal','Personal'],['Family','Family'],['Other','Other out']];
+function vToday(){
+  const day=todayISO();const qc=S.quickCat||'Food';const qa=S.quickAcct||'cash';
+  const isQuick=t=>t.type==='out'&&t.book==='me'&&t.cat!==DRAW&&t.cat!=='Debt payment'&&!t.debt;
+  const today=S.tx.filter(t=>t.date===day&&isQuick(t)).sort((a,b)=>b.id.localeCompare(a.id));
+  const[ws]=(()=>{const d=new Date();d.setDate(d.getDate()-(d.getDay()+6)%7);return[iso(d)]})();
+  const week=sum(S.tx.filter(t=>t.date>=ws&&t.date<=day&&isQuick(t)),t=>t.amt);
+  const month=sum(S.tx.filter(t=>monthKey(t.date)===monthKey(day)&&isQuick(t)),t=>t.amt);
+  return `<section class="panel"><div class="row"><h3 style="margin:0">Daily expenses</h3><b class="neg">${peso(sum(today,t=>t.amt))} today</b></div>
+  <div class="chips scroll" style="margin:10px 0">${QUICK.map(([l,c])=>`<button class="chip" aria-pressed="${qc===c}" data-act="qcat" data-v="${c}">${l}</button>`).join('')}</div>
+  <div class="qrow"><input id="qamt" inputmode="decimal" placeholder="Amount" autocomplete="off" aria-label="Amount"><select id="qacct" aria-label="Paid from">${acctOpts(qa)}</select><button class="btn primary" data-act="qadd">Add</button></div>
+  <input id="qnote" class="qnote" placeholder="Note (optional), e.g. lunch, jeep" autocomplete="off">
+  ${today.length?`<ul class="list" style="margin-top:6px">`+today.map(t=>`<li><div class="main"><div class="name">${esc(t.note||t.cat)}</div><div class="meta">${esc(t.cat)} · ${esc(acctName(t.acct))}</div></div><span class="amt neg">${peso(t.amt)}</span><button class="btn small ghost" data-act="deltx" data-id="${t.id}" aria-label="Delete">✕</button></li>`).join('')+`</ul>`:`<p class="hint">Nothing yet today. Pick a category, type the amount, tap Add.</p>`}
+  <p class="hint">This week ${peso(week)} · This month ${peso(month)}</p></section>`;
+}
+function quickAdd(){
+  const el=document.getElementById('qamt');const amt=num(el.value);if(amt<=0){toast('Type an amount');el.focus();return}
+  const acct=document.getElementById('qacct').value,cat=S.quickCat||'Food',note=document.getElementById('qnote').value.trim();
+  const t={id:uid(),type:'out',amt,book:'me',cat,acct,date:todayISO(),note};
+  S.tx.push(t);cardEffect(t,1);S.quickAcct=acct;save();render();toast(peso(amt)+' '+cat.toLowerCase()+' added');
+  setTimeout(()=>document.getElementById('qamt')?.focus(),30);
+}
 function vHome(){
   const accts=S.accounts.map(a=>({...a,bal:balance(a)}));
   const total=sum(accts,a=>a.bal);
@@ -389,7 +425,7 @@ function vHome(){
     <b class="${a.bal<0?'neg':''}">${peso(a.bal)}</b></button>`).join('')+
   `<div class="total"><span>Total</span><b>${peso(total)}</b></div>
   <p class="hint">Tap an account to update its balance or move money from it.</p>
-  <div class="chips" style="margin-top:10px"><button class="btn small primary" data-act="xfer">Move money</button><button class="btn small" data-act="addtx">Add entry</button></div></section>`;
+  <div class="chips" style="margin-top:10px"><button class="btn small primary" data-act="xfer">Move money</button><button class="btn small" data-act="addtx">Add entry</button></div></section>`+vToday();
   const m=viewMonth,book=homeBook;
   const tx=S.tx.filter(t=>monthKey(t.date)===m&&inBook(t,book));
   const inc=earned(tx,book),bor=borrowed(tx),out=spent(tx),dr=draws(tx);
@@ -408,15 +444,24 @@ function vHome(){
     ${bor>0?`<p class="hint">Borrowed: <b class="neg">${peso(bor)}</b> (not counted as earned)</p>`:''}
     ${dr>0&&book!=='all'&&book!=='me'?`<p class="hint">Owner's pay taken out: ${peso(dr)}</p>`:''}
   </section>`;
-  if((book==='all'||book==='me')&&S.debts.some(d=>d.bal>0)){const mi=monthlyInterest();
+  if((book==='all'||book==='me')&&monthlyInterest()>0.5){const mi=monthlyInterest();
     h+=`<section class="callout red"><p>Your debts cost about <b>${peso(mi)}</b> a month in interest, roughly <b>${peso(mi/30)}</b> a day.</p></section>`}
   h+=`<section class="panel"><h3>Due this month</h3>`;
   if(!items.length)h+=`<p class="empty">Add bills and debts in their tabs. They'll show up here when due.</p>`;
-  else h+=`<ul class="list">`+items.map(i=>{const late=!i.paid&&isCur&&i.due<td;
+  else{
+    const dv=S.dueView||'group';
+    const row=i=>{const late=!i.paid&&isCur&&i.due<td;
     return `<li class="${i.paid?'done':''}"><div class="day ${late?'late':''}"><b>${i.due}</b>${late?'late':'due'}</div>
     <div class="main"><div class="name">${esc(i.name)}</div><div class="meta">${i.src==='debt'?(i.inst?'Installment':'Minimum payment'):esc(bookName(i.book))+(i.freq&&i.freq!=='monthly'?' · '+FREQ[i.freq]:'')}${i.pre?' · paid before app':''}</div></div>
-    <span class="amt">${peso(i.amt)}</span>${i.paid?`<button class="btn small ghost" data-act="unpay" data-id="${i.id}">Undo</button>`:`<button class="btn small" data-act="pay" data-id="${i.id}">Paid</button>`}</li>`}).join('')+`</ul><p class="hint">Tapping Paid adds it to your log, so don't log it twice. For bills you paid before using the app, tick "Already paid before" so nothing is deducted.</p>`+
+    <span class="amt">${peso(i.amt)}</span>${i.paid?`<button class="btn small ghost" data-act="unpay" data-id="${i.id}">Undo</button>`:`<button class="btn small" data-act="pay" data-id="${i.id}">Paid</button>`}</li>`};
+    const left=sum(items.filter(i=>!i.paid),i=>i.amt);
+    h+=`<div class="row" style="margin:-2px 0 6px"><div class="chips"><button class="chip" aria-pressed="${dv==='group'}" data-act="dueview" data-v="group">By type</button><button class="chip" aria-pressed="${dv==='date'}" data-act="dueview" data-v="date">By date</button></div><span class="meta" style="font-size:13px;color:var(--muted)">${items.filter(i=>i.paid).length}/${items.length} paid · <b class="${left?'neg':'pos'}">${peso(left)}</b> left</span></div>`;
+    if(dv==='date')h+=`<ul class="list">`+items.map(row).join('')+`</ul>`;
+    else h+=dueGroups(items).map(g=>{const gl=sum(g.items.filter(i=>!i.paid),i=>i.amt);const done=g.items.every(i=>i.paid);
+      return `<div class="groupname dgh"><span>${esc(g.name)}</span><span>${done?'all paid':`${peso(gl)} left`}</span></div><ul class="list">`+g.items.map(row).join('')+`</ul>`}).join('');
+    h+=`<p class="hint">Tapping Paid adds it to your log, so don't log it twice. For bills you paid before using the app, tick "Already paid before" so nothing is deducted.</p>`+
     (items.some(i=>!i.paid)&&m<=monthKey(todayISO())?`<button class="btn small" data-act="prepaidall" style="margin-top:10px">Mark all as already paid (no deduction)</button>`:'');
+  }
   return h+`</section>`;
 }
 
@@ -864,7 +909,8 @@ document.getElementById('view').addEventListener('click',e=>{
     mprev:()=>{viewMonth=shiftMonth(viewMonth,-1);render()},mnext:()=>{viewMonth=shiftMonth(viewMonth,1);render()},
     homebook:()=>{homeBook=b.dataset.b;render()},logbook:()=>{logBook=b.dataset.b;render()},billbook:()=>{billBook=b.dataset.b;render()},
     dprev:()=>{shopDay=shiftDay(shopDay,-1);render()},dnext:()=>{shopDay=shiftDay(shopDay,1);render()},
-    pay:()=>payDialog(id),unpay:()=>unpay(id),prepaidall:prepaidAll,period:()=>{period=b.dataset.p;render()},
+    pay:()=>payDialog(id),unpay:()=>unpay(id),dueview:()=>{S.dueView=b.dataset.v;save();render()},qadd:quickAdd,
+    qcat:()=>{S.quickCat=b.dataset.v;save();document.querySelectorAll('[data-act=qcat]').forEach(x=>x.setAttribute('aria-pressed',x===b));document.getElementById('qamt')?.focus()},prepaidall:prepaidAll,period:()=>{period=b.dataset.p;render()},
     addtx:txDialog,xfer:xferDialog,setbal:()=>setBalDialog(id),
     deltx:()=>{if(!confirm('Delete this entry?'))return;const tt=S.tx.find(t=>t.id===id);if(tt)undoTx(tt);S.tx=S.tx.filter(t=>t.id!==id);for(const m in S.paid)for(const k in S.paid[m])if(S.paid[m][k].tx===id)delete S.paid[m][k];save();render()},
     addjob:jobDialog,addparts:partsDialog,draw:drawDialog,paytech:()=>payTechDialog(id),
@@ -904,6 +950,7 @@ document.getElementById('view').addEventListener('change',e=>{
   const k=e.target.dataset.inv;if(k){S.invest[k]=num(e.target.value);save();render()}
 });
 dlg.addEventListener('click',e=>{if(e.target===dlg)dlg.close()});
+document.getElementById('view').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='qamt'||e.target.id==='qnote')){e.preventDefault();quickAdd()}});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')dailySnap()});
 load();
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
