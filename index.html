@@ -148,6 +148,10 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
 .tbl td{text-align:right;padding:6px 0;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
 .chips.scroll{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}
 .chips.scroll .chip{white-space:nowrap}
+.brk{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:14px;margin:-2px 0 12px}
+.brk span{color:var(--muted)}
+.brk i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:7px;vertical-align:-1px}
+.brk i.duebox{background:repeating-linear-gradient(45deg,var(--red) 0 2px,transparent 2px 4px);opacity:.8}
 .dgh{display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:12px;margin-top:10px;font-size:13px}
 .dgh:first-of-type{border-top:0;padding-top:0}
 .qrow{display:grid;grid-template-columns:1fr 1fr auto;gap:8px}
@@ -478,16 +482,28 @@ function vHome(){
   const inc=earned(tx,book),bor=borrowed(tx),out=spent(tx),dr=draws(tx);
   const items=dueItems(m,book);const still=sum(items.filter(i=>!i.paid),i=>i.amt);
   const gap=inc-out-still;const tot=Math.max(inc,out+still,1);const w=v=>(v/tot*100).toFixed(1)+'%';
+  const billIds=new Set(Object.values(S.paid[m]||{}).map(p=>p.tx).filter(Boolean));
+  const outs=tx.filter(t=>t.type==='out'&&t.cat!==DRAW);
+  const isBill=t=>billIds.has(t.id)||!!t.debt;
+  const billsPaid=sum(outs.filter(isBill),t=>t.amt);
+  const shopCost=sum(outs.filter(t=>!isBill(t)&&t.book!=='me'),t=>t.amt);
+  const daily=sum(outs.filter(t=>!isBill(t)&&t.book==='me'),t=>t.amt);
   const isCur=m===monthKey(todayISO());const td=new Date().getDate();
   h+=`<section>${bookChips(book,'homebook')}</section>
   <section class="monthnav"><button data-act="mprev" aria-label="Previous month">‹</button><h2>${monthLabel(m)}</h2><button data-act="mnext" aria-label="Next month">›</button></section>
   <section class="hero">
     <div class="row"><span>Money in (earned)</span><b>${peso(inc)}</b></div>
     <div class="bar"><i class="seg in" style="width:${w(inc)}"></i></div>
-    <div class="row"><span>Spent + still due</span><b>${peso(out+still)}</b></div>
-    <div class="bar"><i class="seg out" style="width:${w(out)}"></i><i class="seg due" style="width:${w(still)}"></i></div>
-    <div class="legend"><span><i style="background:var(--red)"></i>Spent ${peso(out)}</span><span><i style="background:var(--red);opacity:.5"></i>Still due ${peso(still)}</span></div>
-    ${gap>=0?`<p class="verdict good">${peso(gap)} left after everything due</p>`:`<p class="verdict bad">Short by ${peso(-gap)} this month<small>This is what ends up on a card or loan if nothing changes.</small></p>`}
+    <div class="row"><span>Money out + still due</span><b>${peso(out+still)}</b></div>
+    <div class="bar"><i class="seg" style="width:${w(daily)};background:var(--gold)"></i><i class="seg out" style="width:${w(billsPaid)}"></i><i class="seg" style="width:${w(shopCost)};background:var(--blue)"></i><i class="seg due" style="width:${w(still)}"></i></div>
+    <div class="brk">
+      <span><i style="background:var(--gold)"></i>Daily expenses</span><b>${peso(daily)}</b>
+      <span><i style="background:var(--red)"></i>Bills & loans paid</span><b>${peso(billsPaid)}</b>
+      ${shopCost>0||book==='fk'||book==='ct'?`<span><i style="background:var(--blue)"></i>${book==='ct'?'Business costs':'Shop & business costs'}</span><b>${peso(shopCost)}</b>`:''}
+      <span><i class="duebox"></i>Bills still due</span><b>${peso(still)}</b>
+    </div>
+    ${inc<=0&&isCur?`<p class="verdict" style="color:var(--muted);font-size:16px">No income logged yet this month<small>Log shop sales, dealer payments and other income to see if you're ahead or short.</small></p>`
+      :gap>=0?`<p class="verdict good">${peso(gap)} left after everything due</p>`:`<p class="verdict bad">Short by ${peso(-gap)} this month<small>This is what ends up on a card or loan if nothing changes.</small></p>`}
     ${bor>0?`<p class="hint">Borrowed: <b class="neg">${peso(bor)}</b> (not counted as earned)</p>`:''}
     ${dr>0&&book!=='all'&&book!=='me'?`<p class="hint">Owner's pay taken out: ${peso(dr)}</p>`:''}
   </section>`;
