@@ -88,6 +88,7 @@ h3{font-size:15px;margin:0 0 8px;font-weight:650}
 .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px}
 .stat span{display:block;font-size:12px;color:var(--muted)}
 .stat b{font-size:16px}
+.stat input{width:100%;margin-top:4px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-weight:750;font-size:16px;color:var(--green)}
 .cat{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:13px;margin-bottom:8px}
 .cat .track{grid-column:1/-1;height:6px;background:var(--bg);border-radius:3px;overflow:hidden}
 .cat .track i{display:block;height:100%;background:var(--red)}
@@ -300,7 +301,7 @@ function dueItems(m,book){
   let items=S.bills.filter(b=>dueInMonth(b,m)&&(book==='all'||b.book===book))
     .map(b=>({id:b.id,name:b.name,amt:b.amt,due:b.due,src:'bill',book:b.book,cat:b.cat,via:b.via,freq:b.freq}));
   if(book==='all'||book==='me')items=items.concat(S.debts.filter(d=>d.bal>0||paid[d.id]).map(d=>({id:d.id,name:d.name,amt:Math.min(d.min,d.bal)||d.min,due:d.due,src:'debt',book:'me',cat:'Debt payment',via:'',inst:d.kind==='inst'})));
-  items.forEach(i=>i.paid=!!paid[i.id]);
+  items.forEach(i=>{i.paid=!!paid[i.id];i.pre=!!(paid[i.id]&&paid[i.id].pre)});
   return items.sort((a,b)=>a.due-b.due);
 }
 function monthlyInterest(){return sum(S.debts,d=>d.bal*d.rate/100)}
@@ -313,6 +314,35 @@ function techDue(tech,day){
   return{jobs,comm,allow,total:comm+allow};
 }
 function payTx(techId,day){return S.tx.find(t=>t.pay&&t.pay.tech===techId&&t.pay.day===day)}
+function repairAdjustTx(day){return S.tx.find(t=>t.repairDay===day)}
+function repairBooked(day){return sum(S.tx.filter(t=>t.date===day&&t.type==='in'&&t.book==='fk'&&t.cat==='Repair job'&&!t.repairDay),t=>+t.amt||0)}
+function repairReceived(day){const cur=repairAdjustTx(day);return cur&&cur.repairTotal!=null?+cur.repairTotal:repairBooked(day)}
+function plainAmt(n){return String(Math.round((+n||0)*100)/100)}
+// Day total the user typed. The extra above logged repair payments sits in the shop drawer.
+function setRepairReceived(day,total){
+  total=Math.round((+total||0)*100)/100;
+  const booked=repairBooked(day);
+  if(total<booked-0.001)return 'low';
+  const cur=repairAdjustTx(day);
+  const delta=Math.round((total-booked)*100)/100;
+  if(delta<=0.001){if(cur)S.tx=S.tx.filter(t=>t.repairDay!==day);return cur?'saved':'same'}
+  if(cur){if(Math.abs(cur.amt-delta)<0.001&&cur.repairTotal===total&&cur.date===day)return 'same';cur.amt=delta;cur.repairTotal=total;cur.date=day;cur.acct='drawer';return 'saved'}
+  S.tx.push({id:uid(),type:'in',amt:delta,book:'fk',cat:'Repair job',acct:'drawer',date:day,note:'Repairs received',repairDay:day,repairTotal:total});
+  return 'saved';
+}
+function applyRepairReceived(day){
+  const cur=repairAdjustTx(day);if(!cur||cur.repairTotal==null)return false;
+  const delta=Math.round((+cur.repairTotal-repairBooked(day))*100)/100;
+  if(delta<=0.001){S.tx=S.tx.filter(t=>t.repairDay!==day);return true}
+  if(Math.abs(cur.amt-delta)<0.001&&cur.acct==='drawer')return false;
+  cur.amt=delta;cur.acct='drawer';return true;
+}
+function repairSourceAcct(day){
+  const by={};
+  S.tx.filter(t=>t.date===day&&t.type==='in'&&t.book==='fk'&&t.cat==='Repair job').forEach(t=>{by[t.acct]=(by[t.acct]||0)+t.amt});
+  const top=Object.entries(by).sort((a,b)=>b[1]-a[1])[0];
+  return top?top[0]:'drawer';
+}
 function simulate(extra,method){
   const ds=S.debts.filter(d=>d.bal>0).map(d=>({name:d.name,b:+d.bal,rate:+d.rate||0,min:+d.min,inst:d.kind==='inst'}));
   if(!ds.length)return{months:0,interest:0,done:true,order:[]};
@@ -384,8 +414,9 @@ function vHome(){
   if(!items.length)h+=`<p class="empty">Add bills and debts in their tabs. They'll show up here when due.</p>`;
   else h+=`<ul class="list">`+items.map(i=>{const late=!i.paid&&isCur&&i.due<td;
     return `<li class="${i.paid?'done':''}"><div class="day ${late?'late':''}"><b>${i.due}</b>${late?'late':'due'}</div>
-    <div class="main"><div class="name">${esc(i.name)}</div><div class="meta">${i.src==='debt'?(i.inst?'Installment':'Minimum payment'):esc(bookName(i.book))+(i.freq&&i.freq!=='monthly'?' · '+FREQ[i.freq]:'')}</div></div>
-    <span class="amt">${peso(i.amt)}</span>${i.paid?`<button class="btn small ghost" data-act="unpay" data-id="${i.id}">Undo</button>`:`<button class="btn small" data-act="pay" data-id="${i.id}">Paid</button>`}</li>`}).join('')+`</ul><p class="hint">Tapping Paid adds it to your log, so don't log it twice.</p>`;
+    <div class="main"><div class="name">${esc(i.name)}</div><div class="meta">${i.src==='debt'?(i.inst?'Installment':'Minimum payment'):esc(bookName(i.book))+(i.freq&&i.freq!=='monthly'?' · '+FREQ[i.freq]:'')}${i.pre?' · paid before app':''}</div></div>
+    <span class="amt">${peso(i.amt)}</span>${i.paid?`<button class="btn small ghost" data-act="unpay" data-id="${i.id}">Undo</button>`:`<button class="btn small" data-act="pay" data-id="${i.id}">Paid</button>`}</li>`}).join('')+`</ul><p class="hint">Tapping Paid adds it to your log, so don't log it twice. For bills you paid before using the app, tick "Already paid before" so nothing is deducted.</p>`+
+    (items.some(i=>!i.paid)&&m<=monthKey(todayISO())?`<button class="btn small" data-act="prepaidall" style="margin-top:10px">Mark all as already paid (no deduction)</button>`:'');
   return h+`</section>`;
 }
 
@@ -421,7 +452,8 @@ function vShop(){
   const dueAll=sum(workers,t=>techDue(t,day).total);
   let h=`<section class="daynav"><button data-act="dprev" aria-label="Previous day">‹</button><input type="date" id="shopday" value="${day}"><button data-act="dnext" aria-label="Next day">›</button></section>
   <section class="btnrow"><button class="btn primary" data-act="addjob">Repair job</button><button class="btn" data-act="addparts">Parts order</button><button class="btn" data-act="draw">Owner's pay</button></section>
-  <section class="stats"><div class="stat"><span>Repair sales</span><b class="pos">${peso(sum(jobs,t=>t.job.price))}</b></div><div class="stat"><span>Parts used</span><b>${peso(sum(jobs,t=>t.job.parts))}</b></div><div class="stat"><span>Tech pay due</span><b class="neg">${peso(dueAll)}</b></div></section>
+  <section class="stats"><label class="stat"><span>Repairs received</span><input id="repairday" inputmode="decimal" autocomplete="off" aria-label="Repairs received today" value="${plainAmt(repairReceived(day))}"></label><div class="stat"><span>Parts used</span><b>${peso(sum(jobs,t=>t.job.parts))}</b></div><div class="stat"><span>Tech pay due</span><b class="neg">${peso(dueAll)}</b></div></section>
+  <p class="hint" style="margin-top:-4px">Type the repairs received today. Tech pay comes out of that. If it's 0, you can pay from Cash on hand or GCash.</p>
   <section class="panel"><h3>Jobs on ${dayLabel(day)}</h3>`;
   h+=jobs.length?`<ul class="list">`+jobs.map(t=>`<li><div class="main"><div class="name">${esc(t.note||'Repair')}</div><div class="meta">${esc(techById(t.job.tech).name)} · parts ${peso(t.job.parts)}${t.job.comm?` · cut ${peso(t.job.comm)}`:''}</div></div><span class="amt pos">${peso(t.job.price)}</span><button class="btn small ghost" data-act="deltx" data-id="${t.id}" aria-label="Delete job">✕</button></li>`).join('')+`</ul>`:`<p class="empty">No jobs logged for this day.</p>`;
   h+=`</section><section class="panel"><h3>Pay the techs</h3>`;
@@ -629,10 +661,40 @@ function payTechDialog(id){
   const t=techById(id);const d=techDue(t,shopDay);const opt=t.rule==='manual'&&t.allow>0;
   openDlg(`<h2>Pay ${esc(t.name)}</h2><p class="hint" style="margin:-8px 0 12px">${dayLabel(shopDay)}: ${d.jobs.length} job(s), cut ${peso(d.comm)}${d.allow?`, allowance ${peso(d.allow)}`:''}.</p>
   ${opt?`<label class="field" style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="addallow" style="width:auto"><span style="margin:0;color:var(--ink)">Add ${peso(t.allow)} no-repair pay</span></label>`:''}
-  <div class="two"><label class="field"><span>Amount</span><input id="amt" inputmode="decimal" value="${d.total}"></label><label class="field"><span>Paid from</span><select id="acct">${acctOpts('drawer',false)}</select></label></div>${btns('Mark paid')}`,
+  <label class="field"><span>Repairs received today</span><input id="repairin" inputmode="decimal" autocomplete="off" value="${plainAmt(repairReceived(shopDay))}"></label>
+  <p class="hint" id="srcnote" style="margin-top:-6px"></p>
+  <label class="field"><span>Amount</span><input id="amt" inputmode="decimal" value="${plainAmt(d.total)}"></label>
+  <div id="frombox"></div>${btns('Mark paid')}`,
   ()=>{const amt=num(val('amt'));if(amt<=0){toast('Enter an amount');return false}
-    S.tx.push({id:uid(),type:'out',amt,book:'fk',cat:'Tech pay',acct:val('acct'),date:shopDay,note:'Pay: '+t.name+($('addallow')?.checked?' (incl. no-repair pay)':''),pay:{tech:t.id,day:shopDay}});save();render();toast(t.name+' marked paid')});
-  $('addallow')?.addEventListener('change',e=>{$('amt').value=Math.round((d.total+(e.target.checked?t.allow:0))*100)/100});
+    const r=setRepairReceived(shopDay,num(val('repairin')));
+    if(r==='low'){toast('Logged repairs are already '+peso(repairBooked(shopDay)));return false}
+    const rec=repairReceived(shopDay);
+    const acct=rec>0?repairSourceAcct(shopDay):val('acct');
+    if(!acct){toast('Pick an account');return false}
+    S.tx.push({id:uid(),type:'out',amt,book:'fk',cat:'Tech pay',acct,date:shopDay,note:'Pay: '+t.name+($('addallow')?.checked?' (incl. no-repair pay)':''),pay:{tech:t.id,day:shopDay}});
+    save();render();toast(t.name+' marked paid')});
+  let picking=null;
+  const paint=()=>{
+    const want=num(val('repairin')),booked=repairBooked(shopDay),showAcct=!(want>0||booked>0);
+    if(picking!==showAcct){picking=showAcct;
+      $('frombox').innerHTML=showAcct?`<label class="field"><span>Paid from</span><select id="acct">${acctOpts('cash',false)}</select></label><div class="preview" id="pv"></div>`:`<div class="preview" id="pv"></div>`;
+      $('acct')?.addEventListener('change',paint)}
+    const amt=num(val('amt'));
+    if(showAcct){const a=S.accounts.find(x=>x.id===val('acct'));
+      $('pv').innerHTML=a?`${esc(a.name)} after: <b>${peso(balance(a)-amt,1)}</b>`:'';
+      $('srcnote').textContent='No repair payment today. Choose Cash on hand, GCash, or another account.';return}
+    const src=(booked>0||repairAdjustTx(shopDay))?repairSourceAcct(shopDay):'drawer';
+    const a=S.accounts.find(x=>x.id===src);const cur=repairAdjustTx(shopDay);const oldDelta=cur?+cur.amt:0;
+    const newDelta=Math.max(0,Math.round((Math.max(want,booked)-booked)*100)/100);
+    let after=a?balance(a)-amt:0;if(src==='drawer')after+=newDelta-oldDelta;
+    const rec=Math.max(want,booked);
+    const already=sum(S.tx.filter(x=>x.pay&&x.pay.day===shopDay),x=>x.amt);
+    $('pv').innerHTML=`Paid from today's repairs (${peso(rec)})${already?` · ${peso(rec-already)} left after other tech pay`:''}${a?` · ${esc(a.name)} after: <b>${peso(after,1)}</b>`:''}`;
+    $('srcnote').textContent=want+0.001<booked?'Logged repairs are already '+peso(booked)+". This total can't be lower.":'Tech pay comes out of this repair money.';
+  };
+  $('addallow')?.addEventListener('change',e=>{$('amt').value=plainAmt(d.total+(e.target.checked?t.allow:0));paint()});
+  $('repairin').addEventListener('input',paint);$('amt').addEventListener('input',paint);paint();
+  setTimeout(()=>{if(repairReceived(shopDay)<=0)$('repairin')?.focus()},50);
 }
 function drawDialog(){
   openDlg(`<h2>Owner's pay</h2><p class="hint" style="margin:-8px 0 12px">Move your share from a business to personal. Not counted as a business expense.</p>
@@ -697,13 +759,21 @@ function payDialog(itemId){
   const date=m===monthKey(todayISO())?todayISO():m+'-'+pad(Math.min(it.due,28));
   const guess=/card/i.test(it.via||'')?'card':/gcash/i.test(it.via||'')?'gcash':/bank/i.test(it.via||'')?'bank':it.book==='fk'?'drawer':'cash';
   openDlg(`<h2>Mark ${esc(it.name)} paid</h2>
+  <label class="field" style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="pre" style="width:auto"><span style="margin:0;color:var(--ink)">Already paid before (don't deduct from any account)</span></label>
   <div class="two"><label class="field"><span>Amount paid</span><input id="amt" inputmode="decimal" value="${it.amt}"></label><label class="field"><span>Paid from</span><select id="acct">${acctOpts(guess)}</select></label></div>
   ${it.src==='debt'?`<p class="hint" style="margin-top:-4px">${it.inst?'This counts as one month paid.':'This also lowers the debt balance.'}</p>`:''}${btns('Mark paid')}`,
   ()=>{const amt=num(val('amt'));if(amt<=0){toast('Enter an amount');return false}
+    if($('pre').checked){(S.paid[m]=S.paid[m]||{})[it.id]={tx:null,amt,pre:true};save();render();toast('Marked as already paid');return}
     const tx={id:uid(),type:'out',amt,book:it.book,cat:it.cat||'Bills',acct:val('acct'),date,note:it.name};if(it.src==='debt')tx.debt=it.id;
     S.tx.push(tx);cardEffect(tx,1);(S.paid[m]=S.paid[m]||{})[it.id]={tx:tx.id,amt};
     if(it.src==='debt'){const d=S.debts.find(x=>x.id===it.id);if(d){if(d.kind==='inst'){d.paidMonths=Math.min(d.term,d.paidMonths+1);fixDebt(d)}else d.bal=Math.max(0,d.bal-amt)}}
     save();render();toast('Marked paid')});
+  $('pre').addEventListener('change',e=>{$('acct').closest('.field').style.visibility=e.target.checked?'hidden':'visible'});
+}
+function prepaidAll(){
+  const m=viewMonth;const open=dueItems(m,homeBook).filter(i=>!i.paid);if(!open.length)return;
+  if(!confirm(`Mark ${open.length} item(s) for ${monthLabel(m)} as already paid? Nothing is deducted from your accounts or cards.`))return;
+  S.paid[m]=S.paid[m]||{};open.forEach(i=>S.paid[m][i.id]={tx:null,amt:i.amt,pre:true});save();render();toast('Marked as already paid');
 }
 function payDebtDialog(id){
   const d=S.debts.find(x=>x.id===id);if(!d)return;const cm=monthKey(todayISO());
@@ -720,6 +790,7 @@ function payDebtDialog(id){
   $('amt').addEventListener('input',pv);$('acct').addEventListener('change',pv);pv();
 }
 function unpay(itemId){const m=viewMonth;const p=(S.paid[m]||{})[itemId];if(!p)return;
+  if(p.pre){delete S.paid[m][itemId];save();render();toast('Undone');return}
   const pt=S.tx.find(t=>t.id===p.tx);if(pt)cardEffect(pt,-1);S.tx=S.tx.filter(t=>t.id!==p.tx);const d=S.debts.find(x=>x.id===itemId);if(d){if(d.kind==='inst'){d.paidMonths=Math.max(0,d.paidMonths-1);fixDebt(d)}else d.bal+=p.amt}
   delete S.paid[m][itemId];save();render();toast('Payment undone')}
 function acctDialog(id){
@@ -780,6 +851,7 @@ async function renderSnaps(){
 }
 async function restoreData(d,msg){await makeSnap('before','Before '+msg.toLowerCase());S=migrate(d);save();render();toast(msg+' done')}
 function render(){
+  if(applyRepairReceived(shopDay))save();
   document.getElementById('tabs').innerHTML=Object.keys(LABELS).map(k=>`<button data-tab="${k}" ${tab===k?'aria-current="page"':''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k]}</svg>${LABELS[k]}</button>`).join('');
   document.getElementById('view').innerHTML={home:vHome,log:vLog,shop:vShop,bills:vBills,debts:vDebts,invest:vInvest,settings:vSettings}[tab]();
   if(tab==='settings')renderSnaps();
@@ -792,7 +864,7 @@ document.getElementById('view').addEventListener('click',e=>{
     mprev:()=>{viewMonth=shiftMonth(viewMonth,-1);render()},mnext:()=>{viewMonth=shiftMonth(viewMonth,1);render()},
     homebook:()=>{homeBook=b.dataset.b;render()},logbook:()=>{logBook=b.dataset.b;render()},billbook:()=>{billBook=b.dataset.b;render()},
     dprev:()=>{shopDay=shiftDay(shopDay,-1);render()},dnext:()=>{shopDay=shiftDay(shopDay,1);render()},
-    pay:()=>payDialog(id),unpay:()=>unpay(id),period:()=>{period=b.dataset.p;render()},
+    pay:()=>payDialog(id),unpay:()=>unpay(id),prepaidall:prepaidAll,period:()=>{period=b.dataset.p;render()},
     addtx:txDialog,xfer:xferDialog,setbal:()=>setBalDialog(id),
     deltx:()=>{if(!confirm('Delete this entry?'))return;const tt=S.tx.find(t=>t.id===id);if(tt)undoTx(tt);S.tx=S.tx.filter(t=>t.id!==id);for(const m in S.paid)for(const k in S.paid[m])if(S.paid[m][k].tx===id)delete S.paid[m][k];save();render()},
     addjob:jobDialog,addparts:partsDialog,draw:drawDialog,paytech:()=>payTechDialog(id),
@@ -825,6 +897,9 @@ document.getElementById('view').addEventListener('click',e=>{
 document.getElementById('view').addEventListener('change',e=>{
   if(e.target.id==='extra'){S.plan.extra=num(e.target.value);save();render()}
   else if(e.target.id==='shopday'&&e.target.value){shopDay=e.target.value;render()}
+  else if(e.target.id==='repairday'){const r=setRepairReceived(shopDay,num(e.target.value));
+    if(r==='low'){toast('Logged repairs are already '+peso(repairBooked(shopDay)));e.target.value=plainAmt(repairReceived(shopDay));return}
+    if(r==='saved'){save();toast('Repairs received saved');setTimeout(render,0)}}
   else if(e.target.id==='deliv'){S.shop.delivery=num(e.target.value);save()}
   const k=e.target.dataset.inv;if(k){S.invest[k]=num(e.target.value);save();render()}
 });
