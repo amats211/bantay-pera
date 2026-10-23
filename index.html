@@ -174,7 +174,7 @@ const DRAW='Owner draw';
 const BOOKCATS={
   me:{in:['Salary',DRAW,'Side income',BORROWED,'Other in'],
       out:['Food','Snacks','Transport','Utilities','Bills','Subscriptions','Debt payment','Family','Load & data','Personal','Other out']},
-  fk:{in:['Repair job','Accessories sales','Other shop income',BORROWED],
+  fk:{in:['Repair job','Dealer payment','Accessories sales','Other shop income',BORROWED],
       out:['Parts','Parts delivery','Tech pay','Rent','Utilities','Internet','Permits & fees','Software & tools','Supplies',DRAW,'Other shop expense']},
   ct:{in:['Winbliter8 activations','Kurso.ph courses','Other online income',BORROWED],
       out:['Hosting & domain','Software & tools','Ads',DRAW,'Other']}
@@ -198,7 +198,7 @@ function defaults(){return{
     {id:'lester',name:'Lester',pct:40,allow:300,rule:'manual'},
     {id:'eder',name:'Eder',pct:20,allow:200,rule:'always'}],
   shop:{base:'net',delivery:150},
-  tx:[],bills:[],debts:[],paid:{},
+  tx:[],bills:[],debts:[],paid:{},recv:[],
   plan:{extra:0,method:'avalanche'},
   invest:{jar:0,daily:100,minComm:20,rate:6,years:20,holdings:[]}
 }}
@@ -301,6 +301,9 @@ function debtLeft(d){return d.kind==='inst'?Math.max(0,d.term-d.paidMonths):null
 function debtPaidSoFar(d){return d.kind==='inst'?d.monthly*d.paidMonths:sum(S.tx.filter(t=>t.debt===d.id),t=>t.amt)}
 function lastPayMonth(d){const left=debtLeft(d);if(!left)return'';const cm=monthKey(todayISO());const paidNow=!!(S.paid[cm]||{})[d.id];return monthLabel(shiftMonth(cm,paidNow?left:left-1))}
 function cardEffect(t,sign){if(!String(t.acct).startsWith('card:'))return;const d=S.debts.find(x=>x.id===t.acct.slice(5));if(!d)return;d.bal=Math.max(0,d.bal+sign*(t.type==='out'?t.amt:-t.amt))}
+function recvCollected(r){return sum(S.tx.filter(t=>t.recv===r.id),t=>t.amt)}
+function recvLeft(r){return Math.max(0,Math.round((r.amt-recvCollected(r))*100)/100)}
+function recvOpen(){return(S.recv||[]).filter(r=>recvLeft(r)>0.004)}
 function undoTx(t){cardEffect(t,-1);if(t.debt){const d=S.debts.find(x=>x.id===t.debt);if(d){if(d.kind==='inst'){d.paidMonths=Math.max(0,d.paidMonths-1);fixDebt(d)}else d.bal+=t.amt}}}
 function dueItems(m,book){
   const paid=S.paid[m]||{};
@@ -415,6 +418,49 @@ function quickAdd(){
   S.tx.push(t);cardEffect(t,1);S.quickAcct=acct;save();render();toast(peso(amt)+' '+cat.toLowerCase()+' added');
   setTimeout(()=>document.getElementById('qamt')?.focus(),30);
 }
+function vRecv(){
+  const open=recvOpen().sort((a,b)=>a.date.localeCompare(b.date));
+  const done=(S.recv||[]).filter(r=>recvLeft(r)<=0.004).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+  const age=r=>Math.floor((new Date(todayISO()+'T00:00')-new Date(r.date+'T00:00'))/864e5);
+  const byName={};open.forEach(r=>byName[r.name]=(byName[r.name]||0)+recvLeft(r));
+  let h=`<section class="panel" id="recvpanel"><div class="row"><h3 style="margin:0">Dealers who owe</h3><button class="btn small primary" data-act="addrecv">Add unpaid</button></div>`;
+  if(!open.length)h+=`<p class="hint">Nothing owed. When a dealer takes a repair without paying, add it here. It's added to your accounts only when they pay.</p>`;
+  else{
+    h+=`<div class="total" style="border-top:0;margin-top:4px;padding-top:0"><span>${Object.keys(byName).length} dealer(s)</span><b class="pos">${peso(sum(open,recvLeft))}</b></div>`;
+    if(Object.keys(byName).length>1)h+=`<p class="hint" style="margin-top:0">${Object.entries(byName).sort((a,b)=>b[1]-a[1]).map(([n,v])=>`${esc(n)} ${peso(v)}`).join(' · ')}</p>`;
+    h+=`<ul class="list">`+open.map(r=>{const c=recvCollected(r),a=age(r);
+      return `<li><div class="main"><div class="name">${esc(r.name)}</div><div class="meta">${esc(r.note||'')}${r.note?' · ':''}${dayLabel(r.date)}${a>=7?` · <span class="neg">${a} days</span>`:''}${c?` · paid ${peso(c)} of ${peso(r.amt)}`:''}${r.book!=='fk'?' · '+esc(bookName(r.book)):''}</div></div>
+      <span class="amt pos">${peso(recvLeft(r))}</span><button class="btn small" data-act="collect" data-id="${r.id}">Collect</button><button class="btn small ghost" data-act="editrecv" data-id="${r.id}" aria-label="Edit">Edit</button></li>`}).join('')+`</ul>`;
+  }
+  if(done.length)h+=`<div class="groupname">Recently collected</div><ul class="list">`+done.map(r=>`<li class="done"><div class="main"><div class="name">${esc(r.name)}</div><div class="meta">${esc(r.note||'')}</div></div><span class="amt">${peso(r.amt)}</span><button class="btn small ghost" data-act="editrecv" data-id="${r.id}">Edit</button></li>`).join('')+`</ul>`;
+  return h+`</section>`;
+}
+function recvDialog(id){
+  const r=(S.recv||[]).find(x=>x.id===id)||{name:'',amt:'',date:typeof shopDay!=='undefined'?shopDay:todayISO(),book:'fk',note:''};
+  const names=[...new Set((S.recv||[]).map(x=>x.name))].sort();const c=id?recvCollected(r):0;
+  openDlg(`<h2>${id?'Edit unpaid':'Dealer owes me'}</h2>
+  <label class="field"><span>Dealer / customer</span><input id="name" list="rnames" value="${esc(r.name)}" placeholder="Name" autocomplete="off"><datalist id="rnames">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist></label>
+  <div class="two"><label class="field"><span>Amount owed</span><input id="amt" inputmode="decimal" value="${r.amt}"></label><label class="field"><span>Date</span><input id="date" type="date" value="${r.date}"></label></div>
+  <div class="two"><label class="field"><span>For</span><select id="book">${bookOpts(r.book)}</select></label><label class="field"><span>Job / note</span><input id="note" value="${esc(r.note||'')}" placeholder="e.g. A12 charging port"></label></div>
+  ${c?`<p class="hint">${peso(c)} already collected. Delete those payments in the Log tab first if you need to remove this.</p>`:''}${btns('Save',!!id&&!c)}`,
+  ()=>{const name=val('name').trim(),amt=num(val('amt'));if(!name||amt<=0){toast('Add a name and amount');return false}
+    if(id&&amt<c-0.004){toast('Already collected '+peso(c));return false}
+    const nr={id:id||uid(),name,amt,date:val('date')||todayISO(),book:val('book'),note:val('note').trim()};
+    S.recv=S.recv||[];if(id)Object.assign(r,nr);else S.recv.push(nr);save();render();toast(id?'Saved':'Added to unpaid list')});
+  $('del')?.addEventListener('click',()=>{if(!confirm('Delete this unpaid item?'))return;S.recv=S.recv.filter(x=>x.id!==id);save();render();dlg.close()});
+  if(!id)setTimeout(()=>$('name')?.focus(),50);
+}
+function collectDialog(id){
+  const r=S.recv.find(x=>x.id===id);if(!r)return;const left=recvLeft(r);
+  openDlg(`<h2>Collect from ${esc(r.name)}</h2><p class="hint" style="margin:-8px 0 12px">${esc(r.note||'')}${r.note?' · ':''}owes ${peso(left)}</p>
+  <div class="two"><label class="field"><span>Amount received</span><input id="amt" inputmode="decimal" value="${plainAmt(left)}"></label><label class="field"><span>Received in</span><select id="acct">${acctOpts(S.lastCollect||(r.book==='fk'?'drawer':'cash'),false)}</select></label></div>
+  <label class="field"><span>Date</span><input id="date" type="date" value="${todayISO()}"></label><div class="preview" id="pv"></div>${btns('Record payment')}`,
+  ()=>{const amt=num(val('amt'));if(amt<=0){toast('Enter an amount');return false}if(amt>left+0.004){toast('That is more than they owe ('+peso(left)+')');return false}
+    S.tx.push({id:uid(),type:'in',amt,book:r.book,cat:'Dealer payment',acct:val('acct'),date:val('date')||todayISO(),note:'From '+r.name+(r.note?': '+r.note:''),recv:r.id});
+    S.lastCollect=val('acct');save();render();toast(amt>=left-0.004?r.name+' fully paid':'Partial payment recorded')});
+  const pv=()=>{const a=S.accounts.find(x=>x.id===val('acct')),amt=num(val('amt'));$('pv').innerHTML=`${esc(a.name)} after: <b>${peso(balance(a)+amt,1)}</b> · still owes <b>${peso(Math.max(0,left-amt),1)}</b>`};
+  $('amt').addEventListener('input',pv);$('acct').addEventListener('change',pv);pv();
+}
 function vHome(){
   const accts=S.accounts.map(a=>({...a,bal:balance(a)}));
   const total=sum(accts,a=>a.bal);
@@ -424,6 +470,7 @@ function vHome(){
     <div><div>${esc(a.name)}</div><div class="k">${ACCT_KINDS[a.kind]}${a.goal?` · target ${peso(a.goal)}`:''}</div>${a.goal?`<div class="goal"><i style="width:${Math.min(100,Math.max(0,a.bal/a.goal*100)).toFixed(0)}%"></i></div>`:''}</div>
     <b class="${a.bal<0?'neg':''}">${peso(a.bal)}</b></button>`).join('')+
   `<div class="total"><span>Total</span><b>${peso(total)}</b></div>
+  ${recvOpen().length?`<button class="acct" data-act="gorecv" style="margin-top:6px"><div><div>Owed to me (dealers)</div><div class="k">${recvOpen().length} unpaid · not yet in your accounts</div></div><b class="pos">${peso(sum(recvOpen(),recvLeft))}</b></button>`:''}
   <p class="hint">Tap an account to update its balance or move money from it.</p>
   <div class="chips" style="margin-top:10px"><button class="btn small primary" data-act="xfer">Move money</button><button class="btn small" data-act="addtx">Add entry</button></div></section>`+vToday();
   const m=viewMonth,book=homeBook;
@@ -509,6 +556,7 @@ function vShop(){
   if(parts.length)h+=`<section class="panel"><h3>Parts bought this day</h3><ul class="list">${parts.map(txRow).join('')}</ul></section>`;
   const mt=S.tx.filter(t=>t.book==='fk'&&monthKey(t.date)===m&&t.type!=='xfer');
   const sales=earned(mt,'fk'),costs=spent(mt),dr=draws(mt);
+  h+=vRecv();
   h+=`<section class="panel"><h3>${monthLabel(m)} so far</h3><div class="pl"><span>Sales</span><b class="pos">${peso(sales)}</b><span>Costs</span><b class="neg">${peso(costs)}</b><span class="t">Shop profit</span><b class="t ${sales-costs>=0?'pos':'neg'}">${peso(sales-costs)}</b>${dr?`<span>Owner's pay taken</span><b>${peso(dr)}</b>`:''}</div>
   <div style="margin-top:12px">${catBars(mt)}</div>
   <table class="tbl" style="margin-top:8px"><tr><th>Tech</th><th>Jobs</th><th>Sales</th><th>Paid</th></tr>`+
@@ -909,7 +957,8 @@ document.getElementById('view').addEventListener('click',e=>{
     mprev:()=>{viewMonth=shiftMonth(viewMonth,-1);render()},mnext:()=>{viewMonth=shiftMonth(viewMonth,1);render()},
     homebook:()=>{homeBook=b.dataset.b;render()},logbook:()=>{logBook=b.dataset.b;render()},billbook:()=>{billBook=b.dataset.b;render()},
     dprev:()=>{shopDay=shiftDay(shopDay,-1);render()},dnext:()=>{shopDay=shiftDay(shopDay,1);render()},
-    pay:()=>payDialog(id),unpay:()=>unpay(id),dueview:()=>{S.dueView=b.dataset.v;save();render()},qadd:quickAdd,
+    pay:()=>payDialog(id),unpay:()=>unpay(id),addrecv:()=>recvDialog(),editrecv:()=>recvDialog(id),collect:()=>collectDialog(id),
+    gorecv:()=>{tab='shop';render();setTimeout(()=>document.getElementById('recvpanel')?.scrollIntoView({behavior:'smooth'}),30)},dueview:()=>{S.dueView=b.dataset.v;save();render()},qadd:quickAdd,
     qcat:()=>{S.quickCat=b.dataset.v;save();document.querySelectorAll('[data-act=qcat]').forEach(x=>x.setAttribute('aria-pressed',x===b));document.getElementById('qamt')?.focus()},prepaidall:prepaidAll,period:()=>{period=b.dataset.p;render()},
     addtx:txDialog,xfer:xferDialog,setbal:()=>setBalDialog(id),
     deltx:()=>{if(!confirm('Delete this entry?'))return;const tt=S.tx.find(t=>t.id===id);if(tt)undoTx(tt);S.tx=S.tx.filter(t=>t.id!==id);for(const m in S.paid)for(const k in S.paid[m])if(S.paid[m][k].tx===id)delete S.paid[m][k];save();render()},
